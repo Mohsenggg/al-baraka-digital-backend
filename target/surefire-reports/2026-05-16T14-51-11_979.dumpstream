@@ -1,0 +1,5 @@
+# Created at 2026-05-16T14:51:12.958
+Boot Manifest-JAR contains absolute paths in classpath 'D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

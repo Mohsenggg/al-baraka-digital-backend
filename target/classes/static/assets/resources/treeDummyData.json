@@ -1,0 +1,1334 @@
+{
+    "name": "Gen 1",
+    "children": [
+        {
+            "name": "Gen 2 - A",
+            "children": [
+                {
+                    "name": "Gen 3 - A1",
+                    "children": [
+                        {
+                            "name": "Gen 4 - A1a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A1a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A1b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A1b1",
+                                    "children": [
+                                        {
+                                            "name": "极速Gen 6 - A1b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1b3极速c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A1c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A1c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A1c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A1c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A1c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - A2",
+                    "children": [
+                        {
+                            "name": "Gen 4 - A2a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A2a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a极速1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A2b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A2b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A2c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A2c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A2c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A2c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A2c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - A3",
+                    "children": [
+                        {
+                            "name": "Gen 极速4 - A3a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A3a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A3a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A3a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A3b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A3b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A3b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A3b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - A3c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - A3极速c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A极速3c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - A3c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - A3c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - A3c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Gen 2 - B",
+            "children": [
+                {
+                    "name": "Gen 3 - B1",
+                    "children": [
+                        {
+                            "name": "Gen 4 - B1a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B1a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B1b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B1b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B1c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B1c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B1c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B1c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B1c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - B2",
+                    "children": [
+                        {
+                            "name": "Gen 4 - B2a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B2a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B极速2a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B2b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B2b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B2c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B2c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B2c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B2c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B2c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - B3",
+                    "children": [
+                        {
+                            "name": "Gen 4 - B3a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B3a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3极速a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B3b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B3b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - B3c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - B3c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - B3c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - B3c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - B3c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Gen 2 - C",
+            "children": [
+                {
+                    "name": "Gen 3 - C1",
+                    "children": [
+                        {
+                            "name": "Gen 4 - C1a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C1a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C1a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C1a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C1b",
+                            "children": [
+                                {
+                                    "name": "Gen 极速5 - C1b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1b1极速a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 -极速 C1b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C1b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "极速Gen 5 - C1b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C1c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C1c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C1c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C1c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C1c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C1c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - C2",
+                    "children": [
+                        {
+                            "name": "Gen 4 - C2a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C2a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 极速5 - C2a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C2a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C2b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C2b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C2b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C2b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C2c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C2c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C2c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C2c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C2c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C2c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "Gen 3 - C3",
+                    "children": [
+                        {
+                            "name": "Gen 4 - C3a",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C3a1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3a1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3a2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 -极速 C3a2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a2极速c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3a3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3a3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3a3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C3b",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C3b1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3b1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3b2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3b2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3b3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3b3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3b3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Gen 4 - C3c",
+                            "children": [
+                                {
+                                    "name": "Gen 5 - C3c1",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3c1a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c1b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c1c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3c2",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3极速c2a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c2b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c2c"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "Gen 5 - C3c3",
+                                    "children": [
+                                        {
+                                            "name": "Gen 6 - C3c3a"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c3b"
+                                        },
+                                        {
+                                            "name": "Gen 6 - C3c3c"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
