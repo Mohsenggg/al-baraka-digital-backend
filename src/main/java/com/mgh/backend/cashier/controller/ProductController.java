@@ -31,6 +31,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.searchProducts(query));
     }
 
+    @GetMapping("/barcode/{barcode}")
+    public ResponseEntity<ProductDto> getProductByBarcode(@PathVariable String barcode) {
+        return ResponseEntity.ok(productService.getProductByCode(barcode));
+    }
+
     @GetMapping("/{code}")
     public ResponseEntity<ProductDto> getProductByCode(@PathVariable String code) {
         return ResponseEntity.ok(productService.getProductByCode(code));

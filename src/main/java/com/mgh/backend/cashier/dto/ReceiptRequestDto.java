@@ -1,21 +1,25 @@
-
-// receipt.dto.ReceiptRequestDto.java
 package com.mgh.backend.cashier.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
 public class ReceiptRequestDto {
-    private String customerName;          // optional
-    private Long customerId;              // optional
-    @NotNull
-    private Long cashierId;               // who is creating/updating
-    @NotEmpty
+    private String customerName;
+    private Long customerId;
+    @NotNull(message = "Cashier ID is required")
+    private Long cashierId;
+    @NotEmpty(message = "Receipt must contain at least one item")
+    @Valid
     private List<ReceiptItemRequest> items;
-    private String paymentMethod;         // defaults to CASH if null
+    private String paymentMethod;
     private String receiptType;
-    private Integer totalQuantity;// defaults to SELL
+    private Integer totalQuantity;
+    private BigDecimal tax;
+    private BigDecimal discount;
 }

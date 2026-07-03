@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.mgh.backend.CashierBackendApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 35.62 s -- in com.mgh.backend.CashierBackendApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 16.11 s -- in com.mgh.backend.CashierBackendApplicationTests

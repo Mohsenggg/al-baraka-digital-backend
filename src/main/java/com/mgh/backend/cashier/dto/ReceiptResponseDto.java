@@ -18,15 +18,20 @@ public class ReceiptResponseDto {
 
     private Long id;
     private String receiptNumber;
-    private LocalDateTime receiptDate;          // ← was missing
+    private LocalDateTime receiptDate;
     private PaymentMethod paymentMethod;
     private ReceiptType receiptType;
     private String customerName;
+    private Long customerId;
     private Long cashierId;
     private String cashierName;
     private BigDecimal totalAmount;
     private Integer totalQuantity;
     private Integer totalItems;
+    private BigDecimal tax;
+    private BigDecimal discount;
+    private BigDecimal subtotal;
+    private BigDecimal finalTotal;
     private ReceiptStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

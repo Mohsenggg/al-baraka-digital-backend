@@ -1,7 +1,10 @@
 package com.mgh.backend.cashier.exception;
 
 import com.mgh.backend.cashier.dto.ErrorResponseDTO;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -16,8 +19,10 @@ import java.util.Map;
 @ControllerAdvice
 public class CashierExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponseDTO> handleResourceNotFound(ResourceNotFoundException ex) {
+    private static final Logger log = LoggerFactory.getLogger(CashierExceptionHandler.class);
+
+    @ExceptionHandler({ResourceNotFoundException.class, EntityNotFoundException.class})
+    public ResponseEntity<ErrorResponseDTO> handleResourceNotFound(RuntimeException ex) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponseDTO(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
@@ -26,7 +31,11 @@ public class CashierExceptionHandler {
     @ExceptionHandler({
             BadRequestException.class,
             InsufficientStockException.class,
-            UnauthorizedInvoiceOperationException.class
+            UnauthorizedInvoiceOperationException.class,
+            BusinessException.class,
+            DuplicateReceiptException.class,
+            IllegalStateException.class,
+            IllegalArgumentException.class
     })
     public ResponseEntity<ErrorResponseDTO> handleBadRequest(RuntimeException ex) {
         return ResponseEntity
@@ -61,6 +70,7 @@ public class CashierExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleUnexpected(Exception ex) {
+        log.error("Unexpected error occurred", ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponseDTO(

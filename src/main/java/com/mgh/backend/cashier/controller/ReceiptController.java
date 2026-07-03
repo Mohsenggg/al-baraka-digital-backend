@@ -1,11 +1,9 @@
-// receipt.controller.ReceiptController.java
 package com.mgh.backend.cashier.controller;
 
 import com.mgh.backend.cashier.dto.*;
 import com.mgh.backend.cashier.entity.PaymentMethod;
 import com.mgh.backend.cashier.entity.ReceiptStatus;
 import com.mgh.backend.cashier.service.ReceiptService;
-import com.mgh.backend.cashier.service.impl.ReceiptServiceImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -18,23 +16,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/receipt")
 @RequiredArgsConstructor
 public class ReceiptController {
 
-    private final ReceiptServiceImpl receiptService;
+    private final ReceiptService receiptService;
 
     @PostMapping
     public ResponseEntity<ReceiptResponseDto> createReceipt(@Valid @RequestBody ReceiptRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(receiptService.createReceipt(request));
-    }
-
-    @PostMapping("/{id}/revoke")
-    public ResponseEntity<ReceiptResponseDto> revokeReceipt(@PathVariable Long id) {
-        return ResponseEntity.ok(receiptService.revokeReceipt(id));
     }
 
     @GetMapping("/{id}")
@@ -43,8 +35,12 @@ public class ReceiptController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReceiptResponseDto>> getReceipts() {
-        return ResponseEntity.ok(receiptService.getReceipts());
+    public ResponseEntity<PageResponseDto<ReceiptResponseDto>> getReceipts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "") String search
+    ) {
+        return ResponseEntity.ok(receiptService.getReceiptsPaginated(page, size, search));
     }
 
     @GetMapping("/filter")
@@ -82,17 +78,13 @@ public class ReceiptController {
         return ResponseEntity.ok(receiptService.searchReceipts(filter, pageable));
     }
 
-
-
     @GetMapping("/navigation-window")
     public ResponseEntity<ReceiptNavigationWindowResponse> getNavigationWindow(
             @RequestParam(required = false) Long centerReceiptId,
             @RequestParam(defaultValue = "0") int before,
             @RequestParam(defaultValue = "10") int after
     ) {
-        return ResponseEntity.ok(
-                receiptService.getNavigationWindow(centerReceiptId, before, after)
-        );
+        return ResponseEntity.ok(receiptService.getNavigationWindow(centerReceiptId, before, after));
     }
 
     @PutMapping("/{id}")
@@ -103,9 +95,13 @@ public class ReceiptController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReceipt(@PathVariable Long id) {
-        receiptService.deleteReceipt(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeleteReceiptResponseDto> deleteReceipt(@PathVariable Long id) {
+        return ResponseEntity.ok(receiptService.deleteReceipt(id));
+    }
+
+    @PostMapping("/{id}/revoke")
+    public ResponseEntity<ReceiptResponseDto> revokeReceipt(@PathVariable Long id) {
+        return ResponseEntity.ok(receiptService.revokeReceipt(id));
     }
 
     @PostMapping("/{id}/draft")

@@ -1,12 +1,6 @@
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\controller\AuthController.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\AuthRequestDto.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\AuthResponseDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\InvitationCodeGenerateRequestDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\InvitationCodeResponseDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\RegisterFormDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\RegistrationInitiateRequestDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\RegistrationInitiateResponseDto.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\register\RegistrationSubmitRequestDto.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\RegisterRequestDto.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\TokenExpiryDto.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\dto\UserDataDto.java
@@ -15,7 +9,6 @@ D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\bac
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\entity\UserProfile.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\enums\RegisterStatus.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\enums\Role.java
-D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\domain\mapper\RegisterFormMapper.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\repository\RegisterFormRepository.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\repository\UserAuthRepo.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\repository\UserProfileRepository.java
@@ -25,6 +18,8 @@ D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\bac
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\security\SecurityUtils.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\security\service\JwtService.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\security\service\UserDetailsServiceImpl.java
+D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\service\AuthService.java
+D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\auth\service\RegistrationService.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\cashier\controller\CashierController.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\cashier\controller\ForwardController.java
 D:\Software\AL-Baraka\Pos\Cashier-web\Cashier-web-back\src\main\java\com\mgh\backend\cashier\controller\ProductController.java

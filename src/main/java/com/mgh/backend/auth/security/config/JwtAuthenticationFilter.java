@@ -62,6 +62,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+
+        // ---------------------------------------------------------
+        // 1.2 Added New to solve expired token bug
+        // ---------------------------------------------------------
+
+        String path = request.getServletPath();
+
+        if (path.startsWith("/api/auth")) {
+            log.debug("Skipping JWT filter for auth endpoint: {}", path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // ---------------------------------------------------------
         // 2. Skip authentication if Authorization header is missing
         //    or does not start with "Bearer "
@@ -73,6 +86,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
+
+
+
 
         // ---------------------------------------------------------
         // 3. Extract raw JWT token from the Authorization header

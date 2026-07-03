@@ -1,14 +1,19 @@
 package com.mgh.backend.cashier.service.impl;
 
-
 import com.mgh.backend.cashier.dto.*;
 import com.mgh.backend.cashier.entity.*;
+import com.mgh.backend.cashier.exception.InsufficientStockException;
+import com.mgh.backend.cashier.exception.ResourceNotFoundException;
+import com.mgh.backend.cashier.exception.BusinessException;
 import com.mgh.backend.cashier.repository.*;
-import jakarta.persistence.EntityNotFoundException;
+import com.mgh.backend.cashier.service.ReceiptService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,32 +25,32 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class ReceiptServiceImpl {
+public class ReceiptServiceImpl implements ReceiptService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReceiptServiceImpl.class);
 
     private final ReceiptRepository receiptRepository;
     private final CashierRepository cashierRepository;
     private final ProductRepository productRepository;
 
-    // ──────────────────────────────────────────────
-    //  Create (client handles pricing, we deduct stock)
-    // ──────────────────────────────────────────────
+    @Override
     public ReceiptResponseDto createReceipt(ReceiptRequestDto request) {
-        Cashier cashier = cashierRepository.findById(request.getCashierId()).orElseThrow(() -> new EntityNotFoundException("Cashier not found with id: " + request.getCashierId()));
-
+        Cashier cashier = cashierRepository.findById(request.getCashierId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
 
         Receipt receipt = Receipt.builder()
-                .receiptNumber(generateReceiptNumber())
+                .receiptNumber(generateUniqueReceiptNumber())
                 .receiptDate(LocalDateTime.now())
                 .paymentMethod(parsePaymentMethod(request.getPaymentMethod()))
                 .receiptType(parseReceiptType(request.getReceiptType()))
                 .customerName(request.getCustomerName())
+                .tax(request.getTax())
+                .discount(request.getDiscount())
                 .status(ReceiptStatus.SAVED)
                 .cashier(cashier)
                 .isDeleted(false)
                 .build();
 
-        // Build items using client data AND deduct stock
         List<ReceiptItem> items = request.getItems().stream()
                 .map(itemReq -> buildItemAndDeductStock(itemReq, receipt))
                 .collect(Collectors.toList());
@@ -53,28 +58,22 @@ public class ReceiptServiceImpl {
 
         recalculateTotals(receipt);
         Receipt saved = receiptRepository.save(receipt);
+
+        log.info("Receipt created: {} by cashier: {}", saved.getReceiptNumber(), cashier.getFullName());
         return mapToResponseDto(saved);
     }
 
-    // ──────────────────────────────────────────────
-    //  Update (replace all items, adjust stock)
-    // ──────────────────────────────────────────────
+    @Override
     public ReceiptResponseDto updateReceipt(Long id, ReceiptRequestDto request) {
         Receipt receipt = receiptRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
         if (receipt.getStatus() == ReceiptStatus.DELETED) {
-            throw new IllegalStateException ("Cannot update a deleted receipt");
+            throw new BusinessException("Cannot update a deleted receipt");
         }
 
-        // First, restore stock for all the OLD items
-        for (ReceiptItem oldItem : receipt.getItems()) {
-            Product product = productRepository.findByCode(oldItem.getProductCode())
-                    .orElseThrow(() -> new EntityNotFoundException("Product not found for code: " + oldItem.getProductCode()));
-            product.setStock(product.getStock() + oldItem.getQuantity());
-            productRepository.save(product);
-        }
+        restoreStockForItems(receipt.getItems());
 
-        // Update receipt metadata
         if (request.getPaymentMethod() != null) {
             receipt.setPaymentMethod(parsePaymentMethod(request.getPaymentMethod()));
         }
@@ -84,8 +83,9 @@ public class ReceiptServiceImpl {
         if (request.getCustomerName() != null) {
             receipt.setCustomerName(request.getCustomerName());
         }
+        receipt.setTax(request.getTax());
+        receipt.setDiscount(request.getDiscount());
 
-        // Clear old items and add new ones with fresh stock deduction
         receipt.getItems().clear();
         List<ReceiptItem> newItems = request.getItems().stream()
                 .map(itemReq -> buildItemAndDeductStock(itemReq, receipt))
@@ -93,67 +93,71 @@ public class ReceiptServiceImpl {
         receipt.getItems().addAll(newItems);
 
         recalculateTotals(receipt);
-        return mapToResponseDto(receipt);
+        Receipt saved = receiptRepository.save(receipt);
+
+        log.info("Receipt updated: {}", saved.getReceiptNumber());
+        return mapToResponseDto(saved);
     }
 
-    // ──────────────────────────────────────────────
-    //  Delete (soft delete, restore stock)
-    // ──────────────────────────────────────────────
-    public void deleteReceipt(Long id) {
+    @Override
+    public DeleteReceiptResponseDto deleteReceipt(Long id) {
         Receipt receipt = receiptRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
 
-        // Restore stock before deletion
-        for (ReceiptItem item : receipt.getItems()) {
-            Product product = productRepository.findByCode(item.getProductCode())
-                    .orElseThrow(() -> new EntityNotFoundException("Product not found for code: " + item.getProductCode()));
-            product.setStock(product.getStock() + item.getQuantity());
-            productRepository.save(product);
-        }
+        restoreStockForItems(receipt.getItems());
 
         receipt.setDeleted(true);
         receipt.setStatus(ReceiptStatus.DELETED);
         receiptRepository.save(receipt);
+
+        log.info("Receipt soft-deleted: {}", receipt.getReceiptNumber());
+        return DeleteReceiptResponseDto.builder()
+                .id(id)
+                .isDeleted(true)
+                .build();
     }
 
-    // ──────────────────────────────────────────────
-    //  Revoke (just change status, no stock change)
-    // ──────────────────────────────────────────────
+    @Override
     public ReceiptResponseDto revokeReceipt(Long id) {
         Receipt receipt = receiptRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
         if (receipt.getStatus() == ReceiptStatus.DELETED) {
-            throw new IllegalStateException("Receipt is already revoked");
+            throw new BusinessException("Receipt is already revoked");
         }
+
         receipt.setStatus(ReceiptStatus.DELETED);
         receiptRepository.save(receipt);
+
+        log.info("Receipt revoked: {}", receipt.getReceiptNumber());
         return mapToResponseDto(receipt);
     }
 
-    // ──────────────────────────────────────────────
-    //  Draft (move from SAVED back to DRAFT)
-    // ──────────────────────────────────────────────
+    @Override
     public ReceiptResponseDto draftReceipt(Long id) {
         Receipt receipt = receiptRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
         if (receipt.getStatus() != ReceiptStatus.SAVED) {
-            throw new IllegalStateException ("Only saved receipts can be moved to draft");
+            throw new BusinessException("Only saved receipts can be moved to draft");
         }
+
         receipt.setStatus(ReceiptStatus.DRAFT);
         receiptRepository.save(receipt);
+
+        log.info("Receipt moved to draft: {}", receipt.getReceiptNumber());
         return mapToResponseDto(receipt);
     }
 
-    // ──────────────────────────────────────────────
-    //  Read operations
-    // ──────────────────────────────────────────────
+    @Override
     @Transactional(readOnly = true)
     public ReceiptResponseDto getReceipt(Long id) {
-        Receipt receipt = receiptRepository.findActiveById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + id));
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
         return mapToResponseDto(receipt);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<ReceiptResponseDto> getReceipts() {
         return receiptRepository.findAllActive()
@@ -162,28 +166,225 @@ public class ReceiptServiceImpl {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDto<ReceiptResponseDto> getReceiptsPaginated(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "receiptDate"));
+        Page<Receipt> receiptPage = receiptRepository.findActiveWithSearch(search, pageable);
+        return PageResponseDto.from(receiptPage, this::mapToResponseDto);
+    }
 
-
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDto<ReceiptListItemDto> searchReceipts(ReceiptSearchFilter filter, Pageable pageable) {
         Page<Receipt> receiptPage = receiptRepository.findAll(
                 ReceiptSpecification.withFilters(filter),
                 pageable
         );
+        return PageResponseDto.from(receiptPage, this::mapToListItemDto);
+    }
 
-        return PageResponseDto.<ReceiptListItemDto>builder()
-                .content(
-                        receiptPage.getContent()
-                                .stream()
-                                .map(this::mapToListItemDto)
-                                .toList()
-                )
-                .page(receiptPage.getNumber())
-                .size(receiptPage.getSize())
-                .totalElements(receiptPage.getTotalElements())
-                .totalPages(receiptPage.getTotalPages())
-                .hasNext(receiptPage.hasNext())
-                .hasPrevious(receiptPage.hasPrevious())
+    @Override
+    @Transactional(readOnly = true)
+    public ReceiptNavigationWindowResponse getNavigationWindow(Long centerReceiptId, int before, int after) {
+        int safeBefore = Math.max(before, 0);
+        int safeAfter = Math.max(after, 0);
+
+        if (centerReceiptId == null) {
+            return getLatestNavigationWindow(safeAfter);
+        }
+
+        Receipt centerReceipt = receiptRepository.findActiveWithItemsById(centerReceiptId)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + centerReceiptId));
+
+        List<Receipt> newerReceipts = receiptRepository.findNewerThan(
+                centerReceiptId, PageRequest.of(0, safeBefore));
+        Collections.reverse(newerReceipts);
+
+        List<Receipt> olderReceipts = receiptRepository.findOlderThan(
+                centerReceiptId, PageRequest.of(0, safeAfter));
+
+        List<Receipt> receipts = new ArrayList<>();
+        receipts.addAll(newerReceipts);
+        receipts.add(centerReceipt);
+        receipts.addAll(olderReceipts);
+
+        return ReceiptNavigationWindowResponse.builder()
+                .currentReceiptId(centerReceipt.getId())
+                .currentIndex(newerReceipts.size())
+                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(centerReceipt.getId()))
+                .hasNewer(receiptRepository.existsByIsDeletedFalseAndIdGreaterThan(centerReceipt.getId()))
+                .receipts(receipts.stream().map(this::mapToResponseDto).toList())
+                .build();
+    }
+
+    // ──────────────────────────────────────────────
+    //  Private helpers
+    // ──────────────────────────────────────────────
+
+    private ReceiptItem buildItemAndDeductStock(ReceiptItemRequest itemReq, Receipt receipt) {
+        Product product = productRepository.findWithLockByCode(itemReq.getProductCode())
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + itemReq.getProductCode()));
+
+        if (product.getStock() < itemReq.getQuantity()) {
+            throw new InsufficientStockException(
+                    "Insufficient stock for product '" + product.getName() + "' (code: " + product.getCode() +
+                            "): available=" + product.getStock() + ", requested=" + itemReq.getQuantity());
+        }
+
+        product.setStock(product.getStock() - itemReq.getQuantity());
+        productRepository.save(product);
+
+        BigDecimal unitPrice = product.getPrice();
+        BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+        return ReceiptItem.builder()
+                .receipt(receipt)
+                .productCode(product.getCode())
+                .productName(product.getName())
+                .quantity(itemReq.getQuantity())
+                .price(unitPrice)
+                .total(lineTotal)
+                .remainingStock(product.getStock())
+                .build();
+    }
+
+    private void restoreStockForItems(List<ReceiptItem> items) {
+        for (ReceiptItem item : items) {
+            Product product = productRepository.findWithLockByCode(item.getProductCode())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found for code: " + item.getProductCode()));
+            product.setStock(product.getStock() + item.getQuantity());
+            productRepository.save(product);
+        }
+    }
+
+    private void recalculateTotals(Receipt receipt) {
+        int totalQty = receipt.getItems().stream()
+                .mapToInt(ReceiptItem::getQuantity).sum();
+        BigDecimal subtotal = receipt.getItems().stream()
+                .map(ReceiptItem::getTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal tax = receipt.getTax() != null ? receipt.getTax() : BigDecimal.ZERO;
+        BigDecimal discount = receipt.getDiscount() != null ? receipt.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalTotal = subtotal.add(tax).subtract(discount);
+
+        receipt.setTotalQuantity(totalQty);
+        receipt.setTotalItems(receipt.getItems().size());
+        receipt.setTotalAmount(finalTotal);
+    }
+
+    private String generateUniqueReceiptNumber() {
+        String receiptNumber;
+        int attempts = 0;
+        do {
+            receiptNumber = generateReceiptNumber();
+            attempts++;
+            if (attempts > 10) {
+                throw new BusinessException("Failed to generate unique receipt number");
+            }
+        } while (receiptRepository.existsByReceiptNumber(receiptNumber));
+        return receiptNumber;
+    }
+
+    private String generateReceiptNumber() {
+        String datePart = LocalDateTime.now().toLocalDate().toString().replace("-", "");
+        String uuid = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+        return "INV-" + datePart + "-" + uuid;
+    }
+
+    private PaymentMethod parsePaymentMethod(String method) {
+        if (method == null || method.isBlank()) return PaymentMethod.CASH;
+        try {
+            return PaymentMethod.valueOf(method.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Invalid payment method: " + method);
+        }
+    }
+
+    private ReceiptType parseReceiptType(String type) {
+        if (type == null || type.isBlank()) return ReceiptType.SELL;
+        try {
+            return ReceiptType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Invalid receipt type: " + type);
+        }
+    }
+
+    private ReceiptNavigationWindowResponse getLatestNavigationWindow(int after) {
+        List<Receipt> receipts = receiptRepository.findLatestNavigationWindow(
+                PageRequest.of(0, after + 1));
+
+        if (receipts.isEmpty()) {
+            return ReceiptNavigationWindowResponse.builder()
+                    .currentReceiptId(null)
+                    .currentIndex(0)
+                    .hasOlder(false)
+                    .hasNewer(false)
+                    .receipts(List.of())
+                    .build();
+        }
+
+        Receipt latestReceipt = receipts.getFirst();
+        return ReceiptNavigationWindowResponse.builder()
+                .currentReceiptId(latestReceipt.getId())
+                .currentIndex(0)
+                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(latestReceipt.getId()))
+                .hasNewer(false)
+                .receipts(receipts.stream().map(this::mapToResponseDto).toList())
+                .build();
+    }
+
+    // ──────────────────────────────────────────────
+    //  DTO mapping
+    // ──────────────────────────────────────────────
+
+    private ReceiptResponseDto mapToResponseDto(Receipt receipt) {
+        List<ReceiptItemResponse> itemDtos = receipt.getItems().stream()
+                .map(this::mapItemToDto)
+                .collect(Collectors.toList());
+
+        BigDecimal subtotal = receipt.getItems().stream()
+                .map(ReceiptItem::getTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal tax = receipt.getTax() != null ? receipt.getTax() : BigDecimal.ZERO;
+        BigDecimal discount = receipt.getDiscount() != null ? receipt.getDiscount() : BigDecimal.ZERO;
+        BigDecimal finalTotal = subtotal.add(tax).subtract(discount);
+
+        return ReceiptResponseDto.builder()
+                .id(receipt.getId())
+                .receiptNumber(receipt.getReceiptNumber())
+                .receiptDate(receipt.getReceiptDate())
+                .paymentMethod(receipt.getPaymentMethod())
+                .totalAmount(receipt.getTotalAmount())
+                .totalQuantity(receipt.getTotalQuantity())
+                .totalItems(receipt.getTotalItems())
+                .receiptType(receipt.getReceiptType())
+                .status(receipt.getStatus())
+                .customerName(receipt.getCustomerName())
+                .customerId(receipt.getCustomer() != null ? receipt.getCustomer().getId() : null)
+                .cashierId(receipt.getCashier() != null ? receipt.getCashier().getId() : null)
+                .cashierName(receipt.getCashier() != null && receipt.getCashier().getFullName() != null
+                        ? receipt.getCashier().getFullName() : "Unknown")
+                .tax(tax)
+                .discount(discount)
+                .subtotal(subtotal)
+                .finalTotal(finalTotal)
+                .items(itemDtos)
+                .createdAt(receipt.getCreatedAt())
+                .updatedAt(receipt.getUpdatedAt())
+                .build();
+    }
+
+    private ReceiptItemResponse mapItemToDto(ReceiptItem item) {
+        return ReceiptItemResponse.builder()
+                .productCode(item.getProductCode())
+                .productName(item.getProductName())
+                .unitPrice(item.getPrice())
+                .quantity(item.getQuantity())
+                .totalPrice(item.getTotal())
+                .remainingStock(item.getRemainingStock())
                 .build();
     }
 
@@ -197,192 +398,7 @@ public class ReceiptServiceImpl {
                 .customerName(receipt.getCustomerName())
                 .status(receipt.getStatus())
                 .paymentMethod(receipt.getPaymentMethod())
-                .cashierName(
-                        receipt.getCashier() != null
-                                ? receipt.getCashier().getFullName()
-                                : null
-                )
-                .build();
-    }
-
-
-
-
-
-    @Transactional(readOnly = true)
-    public ReceiptNavigationWindowResponse getNavigationWindow(Long centerReceiptId, int before, int after) {
-        int safeBefore = Math.max(before, 0);
-        int safeAfter = Math.max(after, 0);
-
-        if (centerReceiptId == null) {
-            return getLatestNavigationWindow(safeAfter);
-        }
-
-        Receipt centerReceipt = receiptRepository.findActiveWithItemsById(centerReceiptId)
-                .orElseThrow(() -> new EntityNotFoundException("Receipt not found with id: " + centerReceiptId));
-
-        List<Receipt> newerReceipts = receiptRepository.findNewerThan(
-                centerReceiptId,
-                PageRequest.of(0, safeBefore)
-        );
-
-        Collections.reverse(newerReceipts);
-
-        List<Receipt> olderReceipts = receiptRepository.findOlderThan(
-                centerReceiptId,
-                PageRequest.of(0, safeAfter)
-        );
-
-        List<Receipt> receipts = new ArrayList<>();
-        receipts.addAll(newerReceipts);
-        receipts.add(centerReceipt);
-        receipts.addAll(olderReceipts);
-
-        return ReceiptNavigationWindowResponse.builder()
-                .currentReceiptId(centerReceipt.getId())
-                .currentIndex(newerReceipts.size())
-                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(centerReceipt.getId()))
-                .hasNewer(receiptRepository.existsByIsDeletedFalseAndIdGreaterThan(centerReceipt.getId()))
-                .receipts(
-                        receipts.stream()
-                                .map(this::mapToResponseDto)
-                                .toList()
-                )
-                .build();
-    }
-
-    private ReceiptNavigationWindowResponse getLatestNavigationWindow(int after) {
-        List<Receipt> receipts = receiptRepository.findLatestNavigationWindow(
-                PageRequest.of(0, after + 1)
-        );
-
-        if (receipts.isEmpty()) {
-            return ReceiptNavigationWindowResponse.builder()
-                    .currentReceiptId(null)
-                    .currentIndex(0)
-                    .hasOlder(false)
-                    .hasNewer(false)
-                    .receipts(List.of())
-                    .build();
-        }
-
-        Receipt latestReceipt = receipts.getFirst();
-
-        return ReceiptNavigationWindowResponse.builder()
-                .currentReceiptId(latestReceipt.getId())
-                .currentIndex(0)
-                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(latestReceipt.getId()))
-                .hasNewer(false)
-                .receipts(
-                        receipts.stream()
-                                .map(this::mapToResponseDto)
-                                .toList()
-                )
-                .build();
-    }
-
-    // ──────────────────────────────────────────────
-    //  Private helpers
-    // ──────────────────────────────────────────────
-
-    /**
-     * Build a ReceiptItem from the client DTO, fetch the product
-     * (for the FK relationship), and deduct stock immediately.
-     */
-    private ReceiptItem buildItemAndDeductStock(ReceiptItemRequest itemReq, Receipt receipt) {
-        Product product = productRepository.findByCode(itemReq.getProductCode())
-                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + itemReq.getProductCode()));
-
-        // Deduct stock
-        if (product.getStock() < itemReq.getQuantity()) {
-            throw new IllegalStateException(
-                    "Insufficient stock for product " + product.getCode() +
-                            ": available " + product.getStock() + ", requested " + itemReq.getQuantity());
-        }
-        product.setStock(product.getStock() - itemReq.getQuantity());
-        productRepository.save(product);
-
-        return ReceiptItem.builder()
-                .receipt(receipt)
-                .productCode(itemReq.getProductCode())
-                .productName(product.getName())
-                .quantity(itemReq.getQuantity())
-                .price(itemReq.getPrice())    // client's unit price
-                .total(itemReq.getTotal())
-                .remainingStock(product.getStock())// client's line total
-                .build();
-    }
-
-    private void recalculateTotals(Receipt receipt) {
-        int totalQty = receipt.getItems().stream()
-                .mapToInt(ReceiptItem::getQuantity).sum();
-        BigDecimal totalAmt = receipt.getItems().stream()
-                .map(ReceiptItem::getTotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        receipt.setTotalQuantity(totalQty);
-        receipt.setTotalItems(receipt.getItems().size());
-        receipt.setTotalAmount(totalAmt);
-    }
-
-    private String generateReceiptNumber() {
-        String datePart = LocalDateTime.now().toLocalDate().toString().replace("-", "");
-        String uuid = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return "INV-" + datePart + "-" + uuid;
-    }
-
-    private PaymentMethod parsePaymentMethod(String method) {
-        if (method == null) return PaymentMethod.CASH;
-        try {
-            return PaymentMethod.valueOf(method.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("Invalid payment method: " + method);
-        }
-    }
-
-    private ReceiptType parseReceiptType(String type) {
-        if (type == null) return ReceiptType.SELL;
-        try {
-            return ReceiptType.valueOf(type.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("Invalid receipt type: " + type);
-        }
-    }
-
-    // ──────────────────────────────────────────────
-    //  DTO mapping
-    // ──────────────────────────────────────────────
-    private ReceiptResponseDto mapToResponseDto(Receipt receipt) {
-        List<ReceiptItemResponse> itemDtos = receipt.getItems().stream()
-                .map(this::mapItemToDto)
-                .collect(Collectors.toList());
-
-        return ReceiptResponseDto.builder()
-                .id(receipt.getId())
-                .receiptNumber(receipt.getReceiptNumber())
-                .receiptDate(receipt.getReceiptDate())
-                .paymentMethod(receipt.getPaymentMethod())
-                .totalAmount(receipt.getTotalAmount())
-                .totalQuantity(receipt.getTotalQuantity())
-                .totalItems(receipt.getTotalItems())
-                .receiptType(receipt.getReceiptType())
-                .status(receipt.getStatus())
-                .customerName(receipt.getCustomerName())
-                .cashierId(receipt.getCashier().getId())
-                .cashierName(receipt.getCashier().getFullName() != null ? receipt.getCashier().getFullName() : "Unknown")
-                .items(itemDtos)
-                .createdAt(receipt.getCreatedAt())
-                .updatedAt(receipt.getUpdatedAt())
-                .build();
-    }
-
-    private ReceiptItemResponse mapItemToDto(ReceiptItem item) {
-        return ReceiptItemResponse.builder()
-                .productCode(item.getProductCode())
-                .productName(item.getProductName())
-                .unitPrice(item.getPrice())            // client's price, saved as unit_price
-                .quantity(item.getQuantity())
-                .totalPrice(item.getTotal())           // client's total
-                .remainingStock(item.getRemainingStock()) // stock AFTER deduction
+                .cashierName(receipt.getCashier() != null ? receipt.getCashier().getFullName() : null)
                 .build();
     }
 }

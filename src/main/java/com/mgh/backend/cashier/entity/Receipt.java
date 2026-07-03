@@ -51,6 +51,12 @@ public class Receipt {
     @Column(name = "total_items", nullable = false)
     private Integer totalItems;
 
+    @Column(name = "tax", precision = 19, scale = 2)
+    private BigDecimal tax;
+
+    @Column(name = "discount", precision = 19, scale = 2)
+    private BigDecimal discount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "receipt_type", nullable = false, length = 50)
     private ReceiptType receiptType;

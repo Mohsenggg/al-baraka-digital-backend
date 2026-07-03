@@ -1,8 +1,8 @@
 package com.mgh.backend.auth.security;
 
 import com.mgh.backend.auth.security.adapter.UserAuthAdapter;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
 public final class SecurityUtils {
 
