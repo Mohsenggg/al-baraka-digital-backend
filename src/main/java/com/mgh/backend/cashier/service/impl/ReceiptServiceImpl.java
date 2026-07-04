@@ -101,16 +101,26 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     public DeleteReceiptResponseDto deleteReceipt(Long id) {
-        Receipt receipt = receiptRepository.findActiveById(id)
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
 
-        restoreStockForItems(receipt.getItems());
+        if (receipt.isDeleted() || receipt.getStatus() == ReceiptStatus.DELETED) {
+            throw new BusinessException("Receipt is already deleted");
+        }
+
+        List<ReceiptItem> items = receipt.getItems();
+        if (items == null || items.isEmpty()) {
+            throw new BusinessException("Cannot delete a receipt with no items");
+        }
+
+        restoreStockForItems(items);
 
         receipt.setDeleted(true);
         receipt.setStatus(ReceiptStatus.DELETED);
         receiptRepository.save(receipt);
 
-        log.info("Receipt soft-deleted: {}", receipt.getReceiptNumber());
+        log.info("Receipt soft-deleted: {} (restored stock for {} item(s))",
+                receipt.getReceiptNumber(), items.size());
         return DeleteReceiptResponseDto.builder()
                 .id(id)
                 .isDeleted(true)
@@ -311,9 +321,16 @@ public class ReceiptServiceImpl implements ReceiptService {
     private void restoreStockForItems(List<ReceiptItem> items) {
         for (ReceiptItem item : items) {
             Product product = productRepository.findWithLockByCode(item.getProductCode())
-                    .orElseThrow(() -> new ResourceNotFoundException("Product not found for code: " + item.getProductCode()));
-            product.setStock(product.getStock() + item.getQuantity());
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Product not found for code: " + item.getProductCode()));
+
+            int restoredQuantity = item.getQuantity();
+            int stockBefore = product.getStock();
+            product.setStock(stockBefore + restoredQuantity);
             productRepository.save(product);
+
+            log.debug("Restored stock for product '{}': {} + {} = {}",
+                    product.getCode(), stockBefore, restoredQuantity, product.getStock());
         }
     }
 
