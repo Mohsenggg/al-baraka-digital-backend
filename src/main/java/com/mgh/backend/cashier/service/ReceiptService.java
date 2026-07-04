@@ -27,4 +27,6 @@ public interface ReceiptService {
     PageResponseDto<ReceiptListItemDto> searchReceipts(ReceiptSearchFilter filter, Pageable pageable);
 
     ReceiptNavigationWindowResponse getNavigationWindow(Long centerReceiptId, int before, int after);
+
+    ReceiptNavigationResponse navigate(Long receiptId, NavigationDirection direction, int limit);
 }

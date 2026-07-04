@@ -218,6 +218,65 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ReceiptNavigationResponse navigate(Long receiptId, NavigationDirection direction, int limit) {
+        Receipt currentReceipt = receiptRepository.findActiveWithItemsById(receiptId)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + receiptId));
+
+        LocalDateTime anchorDate = currentReceipt.getReceiptDate();
+        Long anchorId = currentReceipt.getId();
+        Pageable pageLimit = PageRequest.of(0, limit);
+
+        List<Receipt> navigatedReceipts;
+        boolean hasPrevious;
+        boolean hasNext;
+        int currentIndex;
+
+        if (direction == NavigationDirection.NEXT) {
+            navigatedReceipts = receiptRepository.findNextInOrder(anchorDate, anchorId, pageLimit);
+
+            List<Receipt> combined = new ArrayList<>();
+            combined.add(currentReceipt);
+            combined.addAll(navigatedReceipts);
+
+            Receipt lastInBatch = combined.getLast();
+            hasNext = receiptRepository.existsNextInOrder(lastInBatch.getReceiptDate(), lastInBatch.getId());
+            hasPrevious = receiptRepository.existsPreviousInOrder(anchorDate, anchorId);
+            currentIndex = 0;
+
+            return ReceiptNavigationResponse.builder()
+                    .currentReceiptId(currentReceipt.getId())
+                    .currentIndex(currentIndex)
+                    .hasPrevious(hasPrevious)
+                    .hasNext(hasNext)
+                    .receipts(combined.stream().map(this::mapToResponseDto).toList())
+                    .build();
+
+        } else {
+            navigatedReceipts = receiptRepository.findPreviousInOrder(anchorDate, anchorId, pageLimit);
+            Collections.reverse(navigatedReceipts);
+
+            List<Receipt> combined = new ArrayList<>();
+            combined.addAll(navigatedReceipts);
+            combined.add(currentReceipt);
+
+            currentIndex = combined.size() - 1;
+
+            Receipt firstInBatch = combined.getFirst();
+            hasPrevious = receiptRepository.existsPreviousInOrder(firstInBatch.getReceiptDate(), firstInBatch.getId());
+            hasNext = receiptRepository.existsNextInOrder(anchorDate, anchorId);
+
+            return ReceiptNavigationResponse.builder()
+                    .currentReceiptId(currentReceipt.getId())
+                    .currentIndex(currentIndex)
+                    .hasPrevious(hasPrevious)
+                    .hasNext(hasNext)
+                    .receipts(combined.stream().map(this::mapToResponseDto).toList())
+                    .build();
+        }
+    }
+
     // ──────────────────────────────────────────────
     //  Private helpers
     // ──────────────────────────────────────────────

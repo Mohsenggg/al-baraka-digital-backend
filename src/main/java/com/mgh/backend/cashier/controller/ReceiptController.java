@@ -3,6 +3,7 @@ package com.mgh.backend.cashier.controller;
 import com.mgh.backend.cashier.dto.*;
 import com.mgh.backend.cashier.entity.PaymentMethod;
 import com.mgh.backend.cashier.entity.ReceiptStatus;
+import com.mgh.backend.cashier.exception.BadRequestException;
 import com.mgh.backend.cashier.service.ReceiptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +77,18 @@ public class ReceiptController {
         filter.setPaymentMethod(paymentMethod);
 
         return ResponseEntity.ok(receiptService.searchReceipts(filter, pageable));
+    }
+
+    @GetMapping("/navigation")
+    public ResponseEntity<ReceiptNavigationResponse> navigate(
+            @RequestParam Long receiptId,
+            @RequestParam NavigationDirection direction,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        if (limit <= 0) {
+            throw new BadRequestException("Limit must be a positive number");
+        }
+        return ResponseEntity.ok(receiptService.navigate(receiptId, direction, limit));
     }
 
     @GetMapping("/navigation-window")

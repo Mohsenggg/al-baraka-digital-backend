@@ -19,9 +19,11 @@ import java.util.List;
         name = "cashier_receipts",
         indexes = {
                 @Index(name = "idx_receipt_number", columnList = "receipt_number"),
-                @Index(name = "idx_receipt_date", columnList = "receipt_date")
+                @Index(name = "idx_receipt_date", columnList = "receipt_date"),
+                @Index(name = "idx_receipt_nav_order", columnList = "receipt_date, id")
         }
-)@Getter
+)
+@Getter
 @Setter
 @Builder
 @NoArgsConstructor
