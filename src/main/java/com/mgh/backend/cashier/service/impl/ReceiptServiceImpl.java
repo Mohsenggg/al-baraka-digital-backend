@@ -437,6 +437,10 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     private ReceiptItemResponse mapItemToDto(ReceiptItem item) {
+        Integer currentStock = productRepository.findByCode(item.getProductCode())
+                .map(Product::getStock)
+                .orElse(null);
+
         return ReceiptItemResponse.builder()
                 .productCode(item.getProductCode())
                 .productName(item.getProductName())
@@ -444,6 +448,7 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .quantity(item.getQuantity())
                 .totalPrice(item.getTotal())
                 .remainingStock(item.getRemainingStock())
+                .currentRemainingStock(currentStock)
                 .build();
     }
 

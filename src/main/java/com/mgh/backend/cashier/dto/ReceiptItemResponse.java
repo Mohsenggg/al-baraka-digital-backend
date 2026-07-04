@@ -13,5 +13,5 @@ public class ReceiptItemResponse {
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
     private Integer remainingStock;
-
+    private Integer currentRemainingStock;
 }
