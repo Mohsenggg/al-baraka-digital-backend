@@ -1,11 +1,19 @@
 package com.mgh.backend.product.dto;
 
+import com.mgh.backend.cashier.exception.BadRequestException;
 import com.mgh.backend.product.entity.Product;
+import com.mgh.backend.product.entity.ProductBarcode;
 import com.mgh.backend.product.entity.StockStatus;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -13,16 +21,31 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public final class ProductSpecification {
+
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "name",
+            "code",
+            "createdAt",
+            "maxSellingPrice",
+            "totalStock",
+            "type",
+            "status"
+    );
 
     private ProductSpecification() {
     }
 
-    public static Specification<Product> withFilters(ProductSearchFilter filter) {
+    public static Specification<Product> withFilters(ProductSearchFilter filter, Sort sort) {
+        validateSort(sort);
+
         return (root, query, cb) -> {
             if (query != null && Product.class.equals(query.getResultType())) {
                 query.distinct(true);
+                applySort(root, query, cb, sort);
             }
 
             List<Predicate> predicates = new ArrayList<>();
@@ -82,13 +105,7 @@ public final class ProductSpecification {
             }
 
             if (filter.getPriceMin() != null || filter.getPriceMax() != null) {
-                Subquery<BigDecimal> maxPrice = query.subquery(BigDecimal.class);
-                var barcodeRoot = maxPrice.from(com.mgh.backend.product.entity.ProductBarcode.class);
-                maxPrice.select(cb.max(barcodeRoot.get("sellingPrice")));
-                maxPrice.where(
-                        cb.equal(barcodeRoot.get("product"), root),
-                        cb.isNull(barcodeRoot.get("deletedAt"))
-                );
+                Subquery<BigDecimal> maxPrice = maxSellingPriceSubquery(root, query, cb);
 
                 if (filter.getPriceMin() != null) {
                     predicates.add(cb.greaterThanOrEqualTo(maxPrice, filter.getPriceMin()));
@@ -99,13 +116,7 @@ public final class ProductSpecification {
             }
 
             if (filter.getStockMin() != null || filter.getStockMax() != null || filter.getStockStatus() != null) {
-                Subquery<Integer> totalStock = query.subquery(Integer.class);
-                var barcodeRoot = totalStock.from(com.mgh.backend.product.entity.ProductBarcode.class);
-                totalStock.select(cb.coalesce(cb.sum(barcodeRoot.get("stock")), 0));
-                totalStock.where(
-                        cb.equal(barcodeRoot.get("product"), root),
-                        cb.isNull(barcodeRoot.get("deletedAt"))
-                );
+                Subquery<Integer> totalStock = totalStockSubquery(root, query, cb);
 
                 if (filter.getStockMin() != null) {
                     predicates.add(cb.greaterThanOrEqualTo(totalStock, filter.getStockMin()));
@@ -123,9 +134,81 @@ public final class ProductSpecification {
         };
     }
 
+    private static void validateSort(Sort sort) {
+        if (sort == null || sort.isUnsorted()) {
+            return;
+        }
+
+        for (Sort.Order order : sort) {
+            if (!ALLOWED_SORT_FIELDS.contains(order.getProperty())) {
+                throw new BadRequestException(
+                        "Unsupported sort field: " + order.getProperty()
+                                + ". Allowed fields: " + ALLOWED_SORT_FIELDS.stream().sorted().collect(Collectors.joining(", "))
+                );
+            }
+        }
+    }
+
+    private static void applySort(
+            Root<Product> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb,
+            Sort sort
+    ) {
+        List<Order> orders = new ArrayList<>();
+
+        if (sort == null || sort.isUnsorted()) {
+            orders.add(cb.desc(root.get("createdAt")));
+            query.orderBy(orders);
+            return;
+        }
+
+        for (Sort.Order order : sort) {
+            Expression<?> sortExpression = switch (order.getProperty()) {
+                case "name", "code", "createdAt", "type", "status" -> root.get(order.getProperty());
+                case "maxSellingPrice" -> maxSellingPriceSubquery(root, query, cb);
+                case "totalStock" -> totalStockSubquery(root, query, cb);
+                default -> throw new BadRequestException("Unsupported sort field: " + order.getProperty());
+            };
+            orders.add(order.isAscending() ? cb.asc(sortExpression) : cb.desc(sortExpression));
+        }
+
+        query.orderBy(orders);
+    }
+
+    private static Subquery<BigDecimal> maxSellingPriceSubquery(
+            Root<Product> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb
+    ) {
+        Subquery<BigDecimal> maxPrice = query.subquery(BigDecimal.class);
+        var barcodeRoot = maxPrice.from(ProductBarcode.class);
+        maxPrice.select(cb.coalesce(cb.max(barcodeRoot.get("sellingPrice")), BigDecimal.ZERO));
+        maxPrice.where(
+                cb.equal(barcodeRoot.get("product"), root),
+                cb.isNull(barcodeRoot.get("deletedAt"))
+        );
+        return maxPrice;
+    }
+
+    private static Subquery<Integer> totalStockSubquery(
+            Root<Product> root,
+            CriteriaQuery<?> query,
+            CriteriaBuilder cb
+    ) {
+        Subquery<Integer> totalStock = query.subquery(Integer.class);
+        var barcodeRoot = totalStock.from(ProductBarcode.class);
+        totalStock.select(cb.coalesce(cb.sum(barcodeRoot.get("stock")), 0));
+        totalStock.where(
+                cb.equal(barcodeRoot.get("product"), root),
+                cb.isNull(barcodeRoot.get("deletedAt"))
+        );
+        return totalStock;
+    }
+
     private static Predicate buildStockStatusPredicate(
-            jakarta.persistence.criteria.CriteriaBuilder cb,
-            jakarta.persistence.criteria.Root<Product> root,
+            CriteriaBuilder cb,
+            Root<Product> root,
             Subquery<Integer> totalStock,
             StockStatus stockStatus
     ) {
@@ -144,7 +227,7 @@ public final class ProductSpecification {
                     cb.lessThanOrEqualTo(totalStock, lowThreshold)
             );
             case HEALTHY -> cb.or(
-                    cb.equal(minLevel, zero),
+                    cb.equal(minLevel, 0),
                     cb.greaterThan(totalStock, lowThreshold)
             );
         };

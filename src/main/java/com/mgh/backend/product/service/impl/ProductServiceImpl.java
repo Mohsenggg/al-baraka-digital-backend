@@ -42,7 +42,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -74,8 +73,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public PageResponseDto<ProductListItemDto> listProducts(ProductSearchFilter filter, Pageable pageable) {
-        Pageable safePageable = capPageSize(pageable);
-        Page<Product> page = productRepository.findAll(ProductSpecification.withFilters(filter), safePageable);
+        int size = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
+        Pageable paging = PageRequest.of(pageable.getPageNumber(), size);
+        Page<Product> page = productRepository.findAll(
+                ProductSpecification.withFilters(filter, pageable.getSort()),
+                paging
+        );
         return PageResponseDto.from(page, productMapper::toListItemDto);
     }
 
@@ -655,28 +658,5 @@ public class ProductServiceImpl implements ProductService {
             slug = "item-" + Math.abs(value.hashCode());
         }
         return slug;
-    }
-
-    private Pageable capPageSize(Pageable pageable) {
-        int size = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
-        Sort sort = mapSort(pageable.getSort());
-        return PageRequest.of(pageable.getPageNumber(), size, sort);
-    }
-
-    private Sort mapSort(Sort sort) {
-        if (sort.isUnsorted()) {
-            return Sort.by(Sort.Direction.DESC, "createdAt");
-        }
-
-        List<Sort.Order> orders = new ArrayList<>();
-        for (Sort.Order order : sort) {
-            String property = switch (order.getProperty()) {
-                case "name", "code", "createdAt", "type", "status" -> order.getProperty();
-                case "maxSellingPrice", "totalStock" -> "createdAt";
-                default -> "createdAt";
-            };
-            orders.add(new Sort.Order(order.getDirection(), property));
-        }
-        return Sort.by(orders);
     }
 }
