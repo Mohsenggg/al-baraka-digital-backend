@@ -116,13 +116,13 @@ public final class ProductSpecification {
             }
 
             if (filter.getStockMin() != null || filter.getStockMax() != null || filter.getStockStatus() != null) {
-                Subquery<Integer> totalStock = totalStockSubquery(root, query, cb);
+                Subquery<Long> totalStock = totalStockSubquery(root, query, cb);
 
                 if (filter.getStockMin() != null) {
-                    predicates.add(cb.greaterThanOrEqualTo(totalStock, filter.getStockMin()));
+                    predicates.add(cb.greaterThanOrEqualTo(totalStock, filter.getStockMin().longValue()));
                 }
                 if (filter.getStockMax() != null) {
-                    predicates.add(cb.lessThanOrEqualTo(totalStock, filter.getStockMax()));
+                    predicates.add(cb.lessThanOrEqualTo(totalStock, filter.getStockMax().longValue()));
                 }
 
                 if (filter.getStockStatus() != null) {
@@ -191,14 +191,14 @@ public final class ProductSpecification {
         return maxPrice;
     }
 
-    private static Subquery<Integer> totalStockSubquery(
+    private static Subquery<Long> totalStockSubquery(
             Root<Product> root,
             CriteriaQuery<?> query,
             CriteriaBuilder cb
     ) {
-        Subquery<Integer> totalStock = query.subquery(Integer.class);
+        Subquery<Long> totalStock = query.subquery(Long.class);
         var barcodeRoot = totalStock.from(ProductBarcode.class);
-        totalStock.select(cb.coalesce(cb.sum(barcodeRoot.get("stock")), 0));
+        totalStock.select(cb.coalesce(cb.sum(barcodeRoot.get("stock").as(Long.class)), 0L));
         totalStock.where(
                 cb.equal(barcodeRoot.get("product"), root),
                 cb.isNull(barcodeRoot.get("deletedAt"))
@@ -209,26 +209,27 @@ public final class ProductSpecification {
     private static Predicate buildStockStatusPredicate(
             CriteriaBuilder cb,
             Root<Product> root,
-            Subquery<Integer> totalStock,
+            Subquery<Long> totalStock,
             StockStatus stockStatus
     ) {
-        var minLevel = cb.coalesce(root.get("minStockLevel"), 0);
-        var zero = cb.literal(0);
-        var lowThreshold = cb.prod(minLevel, cb.literal(1.5d));
+        Expression<Double> totalStockValue = totalStock.as(Double.class);
+        Expression<Double> minLevel = cb.coalesce(root.get("minStockLevel").as(Double.class), cb.literal(0.0));
+        Expression<Double> lowThreshold = cb.prod(minLevel, cb.literal(1.5));
+        Expression<Double> zero = cb.literal(0.0);
 
         return switch (stockStatus) {
-            case OUTOFSTOCK -> cb.equal(totalStock, zero);
+            case OUTOFSTOCK -> cb.equal(totalStockValue, zero);
             case CRITICAL -> cb.and(
-                    cb.greaterThan(totalStock, zero),
-                    cb.lessThanOrEqualTo(totalStock, minLevel)
+                    cb.greaterThan(totalStockValue, zero),
+                    cb.lessThanOrEqualTo(totalStockValue, minLevel)
             );
             case LOW -> cb.and(
-                    cb.greaterThan(totalStock, minLevel),
-                    cb.lessThanOrEqualTo(totalStock, lowThreshold)
+                    cb.greaterThan(totalStockValue, minLevel),
+                    cb.lessThanOrEqualTo(totalStockValue, lowThreshold)
             );
             case HEALTHY -> cb.or(
-                    cb.equal(minLevel, 0),
-                    cb.greaterThan(totalStock, lowThreshold)
+                    cb.equal(minLevel, zero),
+                    cb.greaterThan(totalStockValue, lowThreshold)
             );
         };
     }
