@@ -182,14 +182,26 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void softDeleteById(Long id) {
+    public void deleteProduct(Long id) {
         Product product = requireActiveProduct(id);
-        product.setDeletedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+
+        product.setDeletedAt(now);
+        product.setStatus(ProductStatus.DELETED);
+
+        for (ProductBarcode barcode : productMapper.activeBarcodes(product)) {
+            barcode.setDeletedAt(now);
+            barcode.setDefault(false);
+        }
+
         productRepository.save(product);
     }
 
     @Override
     public ProductStatusUpdateResponse updateStatus(Long id, ProductStatusUpdateRequest request) {
+        if (request.getStatus() == ProductStatus.DELETED) {
+            throw new BadRequestException("Use DELETE /api/products/{id} to delete a product");
+        }
         Product product = requireActiveProduct(id);
         product.setStatus(request.getStatus());
         Product saved = productRepository.save(product);
@@ -457,6 +469,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void validateManageRequest(ProductManageSaveRequest request) {
+        if (request.getStatus() == ProductStatus.DELETED) {
+            throw new BadRequestException("Use DELETE /api/products/{id} to delete a product");
+        }
+
         if (request.getBarcodes() == null || request.getBarcodes().isEmpty()) {
             throw new BadRequestException("At least one barcode is required");
         }

@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum ProductStatus {
     ACTIVE("active"),
     INACTIVE("inactive"),
-    DRAFT("draft");
+    DRAFT("draft"),
+    DELETED("deleted");
 
     private final String value;
 

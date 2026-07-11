@@ -39,7 +39,7 @@ public interface ProductService {
 
     ProductManageDetailDto updateDetail(Long id, @Valid ProductManageSaveRequest request);
 
-    void softDeleteById(Long id);
+    void deleteProduct(Long id);
 
     ProductStatusUpdateResponse updateStatus(Long id, @Valid ProductStatusUpdateRequest request);
 

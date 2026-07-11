@@ -36,7 +36,10 @@ public final class ProductSpecification {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("name")), pattern),
                         cb.like(cb.lower(root.get("code")), pattern),
-                        cb.like(cb.lower(barcodes.get("barcode")), pattern),
+                        cb.and(
+                                cb.isNull(barcodes.get("deletedAt")),
+                                cb.like(cb.lower(barcodes.get("barcode")), pattern)
+                        ),
                         cb.like(cb.lower(attributeValues.get("value")), pattern)
                 ));
             }
