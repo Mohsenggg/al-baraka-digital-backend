@@ -1,6 +1,7 @@
 package com.mgh.backend.cashier.exception;
 
 import com.mgh.backend.cashier.dto.ErrorResponseDTO;
+import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -26,6 +27,13 @@ public class CashierExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponseDTO(ex.getMessage(), HttpStatus.NOT_FOUND.value()));
+    }
+
+    @ExceptionHandler({ConflictException.class, EntityExistsException.class})
+    public ResponseEntity<ErrorResponseDTO> handleConflict(RuntimeException ex) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(new ErrorResponseDTO(ex.getMessage(), HttpStatus.CONFLICT.value()));
     }
 
     @ExceptionHandler({

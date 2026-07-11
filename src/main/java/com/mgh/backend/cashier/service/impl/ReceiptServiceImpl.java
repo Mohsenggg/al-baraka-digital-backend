@@ -2,9 +2,10 @@ package com.mgh.backend.cashier.service.impl;
 
 import com.mgh.backend.cashier.dto.*;
 import com.mgh.backend.cashier.entity.*;
-import com.mgh.backend.cashier.exception.InsufficientStockException;
 import com.mgh.backend.cashier.exception.ResourceNotFoundException;
 import com.mgh.backend.cashier.exception.BusinessException;
+import com.mgh.backend.cashier.port.CashierProductPort;
+import com.mgh.backend.cashier.port.CashierSaleProduct;
 import com.mgh.backend.cashier.repository.*;
 import com.mgh.backend.cashier.service.ReceiptService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +32,7 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     private final ReceiptRepository receiptRepository;
     private final CashierRepository cashierRepository;
-    private final ProductRepository productRepository;
+    private final CashierProductPort cashierProductPort;
 
     @Override
     public ReceiptResponseDto createReceipt(ReceiptRequestDto request) {
@@ -292,45 +293,34 @@ public class ReceiptServiceImpl implements ReceiptService {
     // ──────────────────────────────────────────────
 
     private ReceiptItem buildItemAndDeductStock(ReceiptItemRequest itemReq, Receipt receipt) {
-        Product product = productRepository.findWithLockByCode(itemReq.getProductCode())
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + itemReq.getProductCode()));
+        CashierSaleProduct product = cashierProductPort.deductStock(
+                itemReq.getProductCode(),
+                itemReq.getQuantity()
+        );
 
-        if (product.getStock() < itemReq.getQuantity()) {
-            throw new InsufficientStockException(
-                    "Insufficient stock for product '" + product.getName() + "' (code: " + product.getCode() +
-                            "): available=" + product.getStock() + ", requested=" + itemReq.getQuantity());
-        }
-
-        product.setStock(product.getStock() - itemReq.getQuantity());
-        productRepository.save(product);
-
-        BigDecimal unitPrice = product.getPrice();
+        BigDecimal unitPrice = product.price();
         BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
         return ReceiptItem.builder()
                 .receipt(receipt)
-                .productCode(product.getCode())
-                .productName(product.getName())
+                .productCode(product.code())
+                .productName(product.name())
                 .quantity(itemReq.getQuantity())
                 .price(unitPrice)
                 .total(lineTotal)
-                .remainingStock(product.getStock())
+                .remainingStock(product.remainingStock())
                 .build();
     }
 
     private void restoreStockForItems(List<ReceiptItem> items) {
         for (ReceiptItem item : items) {
-            Product product = productRepository.findWithLockByCode(item.getProductCode())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Product not found for code: " + item.getProductCode()));
-
             int restoredQuantity = item.getQuantity();
-            int stockBefore = product.getStock();
-            product.setStock(stockBefore + restoredQuantity);
-            productRepository.save(product);
+            Integer stockBefore = cashierProductPort.getCurrentStock(item.getProductCode());
+            cashierProductPort.restoreStock(item.getProductCode(), restoredQuantity);
 
             log.debug("Restored stock for product '{}': {} + {} = {}",
-                    product.getCode(), stockBefore, restoredQuantity, product.getStock());
+                    item.getProductCode(), stockBefore, restoredQuantity,
+                    stockBefore != null ? stockBefore + restoredQuantity : restoredQuantity);
         }
     }
 
@@ -454,9 +444,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     private ReceiptItemResponse mapItemToDto(ReceiptItem item) {
-        Integer currentStock = productRepository.findByCode(item.getProductCode())
-                .map(Product::getStock)
-                .orElse(null);
+        Integer currentStock = cashierProductPort.getCurrentStock(item.getProductCode());
 
         return ReceiptItemResponse.builder()
                 .productCode(item.getProductCode())
