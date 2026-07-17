@@ -13,7 +13,7 @@ public class ProductListItemDto {
 
     private Long id;
     private String name;
-    private String code;
+    private String barcode;
     private String category;
     private String manufacturer;
     private BigDecimal sellingPrice;

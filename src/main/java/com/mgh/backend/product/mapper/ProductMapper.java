@@ -69,7 +69,7 @@ public interface ProductMapper {
         return ProductListItemDto.builder()
                 .id(product.getId())
                 .name(product.getName())
-                .code(product.getCode())
+                .barcode(product.getBarcode())
                 .category(product.getCategory() != null ? product.getCategory().getName() : null)
                 .manufacturer(product.getManufacturer() != null ? product.getManufacturer().getName() : null)
                 .sellingPrice(defaultBarcode != null ? defaultBarcode.getSellingPrice() : BigDecimal.ZERO)
@@ -126,7 +126,7 @@ public interface ProductMapper {
 
         return ProductDto.builder()
                 .id(product.getId())
-                .code(defaultBarcode != null ? defaultBarcode.getBarcode() : product.getCode())
+                .barcode(defaultBarcode != null ? defaultBarcode.getBarcode() : product.getBarcode())
                 .name(product.getName())
                 .price(defaultBarcode != null ? defaultBarcode.getSellingPrice() : BigDecimal.ZERO)
                 .stock(totalStock)

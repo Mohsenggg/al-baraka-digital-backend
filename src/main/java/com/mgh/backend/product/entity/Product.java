@@ -32,7 +32,7 @@ import java.util.List;
 @Table(
         name = "cashier_products",
         indexes = {
-                @Index(name = "idx_products_code", columnList = "code"),
+                @Index(name = "idx_products_barcode", columnList = "barcode"),
                 @Index(name = "idx_products_name", columnList = "name"),
                 @Index(name = "idx_products_status", columnList = "status"),
                 @Index(name = "idx_products_created_at", columnList = "created_at")
@@ -50,7 +50,7 @@ public class Product {
     private Long id;
 
     @Column(nullable = false, unique = true, length = 100)
-    private String code;
+    private String barcode;
 
     @Column(name = "base_name", nullable = false, length = 255)
     private String baseName;

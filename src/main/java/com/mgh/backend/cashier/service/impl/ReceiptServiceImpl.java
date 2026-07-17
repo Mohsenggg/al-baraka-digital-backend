@@ -303,7 +303,7 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         return ReceiptItem.builder()
                 .receipt(receipt)
-                .productCode(product.code())
+                .productCode(product.barcode())
                 .productName(product.name())
                 .quantity(itemReq.getQuantity())
                 .price(unitPrice)

@@ -27,8 +27,8 @@ public class ProductSpecification {
             if (filter.getQuery() != null && !filter.getQuery().trim().isEmpty()) {
                 String pattern = "%" + filter.getQuery().trim().toLowerCase() + "%";
                 Predicate nameMatch = cb.like(cb.lower(root.get("name")), pattern);
-                Predicate codeMatch = cb.like(cb.lower(root.get("code")), pattern);
-                predicates.add(cb.or(nameMatch, codeMatch));
+                Predicate barcodeMatch = cb.like(cb.lower(root.get("barcode")), pattern);
+                predicates.add(cb.or(nameMatch, barcodeMatch));
             }
 
             if (filter.getCategoryId() != null) {

@@ -7,8 +7,10 @@ import com.mgh.backend.product.dto.response.ProductDto;
 import com.mgh.backend.product.dto.response.ProductIdResponse;
 import com.mgh.backend.product.dto.response.ProductListItemDto;
 import com.mgh.backend.product.dto.response.ProductManageDetailDto;
+import com.mgh.backend.product.dto.response.LightweightProductDto;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
 
 public interface ProductService {
 
@@ -23,9 +25,11 @@ public interface ProductService {
     void deleteProduct(Long id);
 
     // Internal integration
-    ProductDto deductStockByCode(String code, int quantity);
+    ProductDto deductStockByBarcode(String barcode, int quantity);
 
-    void restoreStockByCode(String code, int quantity);
+    void restoreStockByBarcode(String barcode, int quantity);
 
-    Integer getStockByCode(String code);
+    Integer getStockByBarcode(String barcode);
+
+    List<LightweightProductDto> getAllActiveProducts();
 }

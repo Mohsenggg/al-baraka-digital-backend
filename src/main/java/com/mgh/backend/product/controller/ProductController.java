@@ -3,6 +3,7 @@ package com.mgh.backend.product.controller;
 import com.mgh.backend.cashier.dto.PageResponseDto;
 import com.mgh.backend.product.dto.ProductSearchFilter;
 import com.mgh.backend.product.dto.request.ProductManageSaveRequest;
+import com.mgh.backend.product.dto.response.LightweightProductDto;
 import com.mgh.backend.product.dto.response.ProductIdResponse;
 import com.mgh.backend.product.dto.response.ProductListItemDto;
 import com.mgh.backend.product.dto.response.ProductManageDetailDto;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductService productService;
+
+    @GetMapping("/all-products")
+    public ResponseEntity<List<LightweightProductDto>> getAllActiveProducts() {
+        return ResponseEntity.ok(productService.getAllActiveProducts());
+    }
 
     @GetMapping
     public ResponseEntity<PageResponseDto<ProductListItemDto>> listProducts(

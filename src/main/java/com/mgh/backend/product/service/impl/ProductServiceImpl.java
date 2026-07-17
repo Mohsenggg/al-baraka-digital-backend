@@ -8,6 +8,7 @@ import com.mgh.backend.cashier.exception.ResourceNotFoundException;
 import com.mgh.backend.product.dto.ProductSearchFilter;
 import com.mgh.backend.product.dto.ProductSpecification;
 import com.mgh.backend.product.dto.request.ProductManageSaveRequest;
+import com.mgh.backend.product.dto.response.LightweightProductDto;
 import com.mgh.backend.product.dto.response.ProductDto;
 import com.mgh.backend.product.dto.response.ProductIdResponse;
 import com.mgh.backend.product.dto.response.ProductListItemDto;
@@ -86,7 +87,7 @@ public class ProductServiceImpl implements ProductService {
         validateManageRequest(null, request);
 
         Product product = Product.builder()
-                .code("TEMP-" + System.nanoTime())
+                .barcode("TEMP-" + System.nanoTime())
                 .baseName(request.getBaseName().trim())
                 .name(request.getName().trim())
                 .type(request.getType() != null ? request.getType() : ProductType.INVENTORY)
@@ -106,7 +107,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product saved = productRepository.save(product);
-        saved.setCode(generateProductCode(saved.getId()));
+        saved.setBarcode(generateProductBarcode(saved.getId()));
         saved = productRepository.save(saved);
         
         return new ProductIdResponse(saved.getId());
@@ -163,18 +164,18 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductDto deductStockByCode(String code, int quantity) {
-        ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(code).orElse(null);
+    public ProductDto deductStockByBarcode(String barcode, int quantity) {
+        ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(barcode).orElse(null);
         if (lockedBarcode != null) {
             return deductFromBarcode(lockedBarcode, quantity);
         }
 
-        Product product = productRepository.findWithLockByCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + code));
+        Product product = productRepository.findWithLockByBarcode(barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + barcode));
 
         ProductBarcode defaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(product));
         if (defaultBarcode == null) {
-            throw new BadRequestException("Product has no active barcodes: " + code);
+            throw new BadRequestException("Product has no active barcodes: " + barcode);
         }
 
         lockedBarcode = productBarcodeRepository.findWithLockByBarcode(defaultBarcode.getBarcode())
@@ -183,20 +184,20 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void restoreStockByCode(String code, int quantity) {
-        ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(code).orElse(null);
+    public void restoreStockByBarcode(String barcode, int quantity) {
+        ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(barcode).orElse(null);
         if (lockedBarcode != null) {
             lockedBarcode.setStock(lockedBarcode.getStock() + quantity);
             productBarcodeRepository.save(lockedBarcode);
             return;
         }
 
-        Product product = productRepository.findWithLockByCode(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found for code: " + code));
+        Product product = productRepository.findWithLockByBarcode(barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found for barcode: " + barcode));
 
         ProductBarcode defaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(product));
         if (defaultBarcode == null) {
-            throw new BadRequestException("Product has no active barcodes: " + code);
+            throw new BadRequestException("Product has no active barcodes: " + barcode);
         }
 
         lockedBarcode = productBarcodeRepository.findWithLockByBarcode(defaultBarcode.getBarcode())
@@ -207,19 +208,25 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Integer getStockByCode(String code) {
-        return productBarcodeRepository.findActiveByBarcode(code)
-                .map(barcode -> totalStock(barcode.getProduct()))
-                .or(() -> productRepository.findByCodeAndDeletedAtIsNull(code)
+    public Integer getStockByBarcode(String barcode) {
+        return productBarcodeRepository.findActiveByBarcode(barcode)
+                .map(barcodeEntity -> totalStock(barcodeEntity.getProduct()))
+                .or(() -> productRepository.findByBarcodeAndDeletedAtIsNull(barcode)
                         .map(this::totalStock))
                 .orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LightweightProductDto> getAllActiveProducts() {
+        return productRepository.findAllActiveLightweightProducts(ProductStatus.ACTIVE);
     }
 
     private ProductDto deductFromBarcode(ProductBarcode barcode, int quantity) {
         if (barcode.getStock() < quantity) {
             Product product = barcode.getProduct();
             throw new InsufficientStockException(
-                    "Insufficient stock for product '" + product.getName() + "' (code: " + product.getCode() +
+                    "Insufficient stock for product '" + product.getName() + "' (barcode: " + product.getBarcode() +
                             "): available=" + barcode.getStock() + ", requested=" + quantity);
         }
 
@@ -459,7 +466,7 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.activeBarcodes(product).stream().mapToInt(ProductBarcode::getStock).sum();
     }
 
-    private String generateProductCode(Long productId) {
+    private String generateProductBarcode(Long productId) {
         int year = LocalDateTime.now().getYear();
         return "PRD-" + year + "-" + String.format("%05d", productId);
     }
