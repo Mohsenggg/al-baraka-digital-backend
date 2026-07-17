@@ -7,26 +7,17 @@ import com.mgh.backend.cashier.exception.InsufficientStockException;
 import com.mgh.backend.cashier.exception.ResourceNotFoundException;
 import com.mgh.backend.product.dto.ProductSearchFilter;
 import com.mgh.backend.product.dto.ProductSpecification;
-import com.mgh.backend.product.dto.request.AddBarcodeRequest;
-import com.mgh.backend.product.dto.request.CreateProductRequest;
-import com.mgh.backend.product.dto.request.CreateReferenceDataRequest;
 import com.mgh.backend.product.dto.request.ProductManageSaveRequest;
-import com.mgh.backend.product.dto.request.ProductStatusUpdateRequest;
-import com.mgh.backend.product.dto.request.UpdateProductRequest;
-import com.mgh.backend.product.dto.response.ProductBarcodeDto;
 import com.mgh.backend.product.dto.response.ProductDto;
+import com.mgh.backend.product.dto.response.ProductIdResponse;
 import com.mgh.backend.product.dto.response.ProductListItemDto;
 import com.mgh.backend.product.dto.response.ProductManageDetailDto;
-import com.mgh.backend.product.dto.response.ProductReferenceDataDto;
-import com.mgh.backend.product.dto.response.ProductStatusUpdateResponse;
-import com.mgh.backend.product.dto.response.ReferenceItemDto;
-import com.mgh.backend.product.dto.response.StockSummaryDto;
-import com.mgh.backend.product.entity.Manufacturer;
 import com.mgh.backend.product.entity.Product;
 import com.mgh.backend.product.entity.ProductAttribute;
 import com.mgh.backend.product.entity.ProductAttributeValue;
 import com.mgh.backend.product.entity.ProductBarcode;
-import com.mgh.backend.product.entity.ProductCategory;
+import com.mgh.backend.product.entity.ProductConversion;
+import com.mgh.backend.product.entity.ProductMaterial;
 import com.mgh.backend.product.entity.ProductStatus;
 import com.mgh.backend.product.entity.ProductType;
 import com.mgh.backend.product.entity.Supplier;
@@ -46,13 +37,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
 import java.util.Set;
 
 @Service
@@ -84,62 +75,15 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProductListItemDto> quickSearch(String query, int limit) {
-        int safeLimit = Math.min(Math.max(limit, 1), 50);
-        String safeQuery = query == null ? "" : query.trim();
-
-        if (!StringUtils.hasText(safeQuery)) {
-            return productRepository.findAllByDeletedAtIsNull().stream()
-                    .limit(safeLimit)
-                    .map(productMapper::toListItemDto)
-                    .toList();
-        }
-
-        return productRepository
-                .findTop50ByDeletedAtIsNullAndNameContainingIgnoreCaseOrCodeContainingIgnoreCase(
-                        safeQuery,
-                        safeQuery
-                )
-                .stream()
-                .limit(safeLimit)
-                .map(productMapper::toListItemDto)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProductListItemDto getById(Long id) {
-        Product product = requireActiveProduct(id);
-        return productMapper.toListItemDto(product);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProductListItemDto getByCode(String code) {
-        Product product = productRepository.findByCodeAndDeletedAtIsNull(code)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        return productMapper.toListItemDto(product);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProductListItemDto getByBarcode(String barcode) {
-        ProductBarcode productBarcode = productBarcodeRepository.findActiveByBarcode(barcode)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found for barcode: " + barcode));
-        return productMapper.toListItemDto(productBarcode.getProduct(), barcode);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProductManageDetailDto getDetail(Long id) {
+    public ProductManageDetailDto getById(Long id) {
         Product product = productRepository.findDetailedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         return productMapper.toManageDetailDto(product);
     }
 
     @Override
-    public ProductManageDetailDto createDetail(ProductManageSaveRequest request) {
-        validateManageRequest(request);
+    public ProductIdResponse createProduct(ProductManageSaveRequest request) {
+        validateManageRequest(null, request);
 
         Product product = Product.builder()
                 .code("TEMP-" + System.nanoTime())
@@ -150,21 +94,29 @@ public class ProductServiceImpl implements ProductService {
                 .build();
 
         applyReferences(product, request);
-        product.getBarcodes().addAll(buildBarcodes(product, request.getBarcodes(), null));
+        product.getBarcodes().addAll(buildBarcodes(product, request.getBarcodes()));
         product.getAttributeValues().addAll(buildAttributeValues(product, request.getAttributes()));
         product.getSuppliers().addAll(resolveSuppliers(request.getSupplierIds()));
+        
+        if (Boolean.TRUE.equals(request.getHasConversion())) {
+            product.getConversions().addAll(buildConversions(product, request.getConversions()));
+        }
+        if (Boolean.TRUE.equals(request.getHasMaterials())) {
+            product.getMaterials().addAll(buildMaterials(product, request.getMaterials()));
+        }
 
         Product saved = productRepository.save(product);
         saved.setCode(generateProductCode(saved.getId()));
         saved = productRepository.save(saved);
-        return productMapper.toManageDetailDto(saved);
+        
+        return new ProductIdResponse(saved.getId());
     }
 
     @Override
-    public ProductManageDetailDto updateDetail(Long id, ProductManageSaveRequest request) {
+    public ProductIdResponse updateProduct(Long id, ProductManageSaveRequest request) {
         Product product = productRepository.findDetailedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        validateManageRequest(request);
+        validateManageRequest(id, request);
 
         product.setBaseName(request.getBaseName().trim());
         product.setName(request.getName().trim());
@@ -176,12 +128,22 @@ public class ProductServiceImpl implements ProductService {
         }
 
         applyReferences(product, request);
-        replaceBarcodes(product, request.getBarcodes(), id);
+        replaceBarcodes(product, request.getBarcodes());
         replaceAttributeValues(product, request.getAttributes());
         replaceSuppliers(product, request.getSupplierIds());
+        
+        product.getConversions().clear();
+        if (Boolean.TRUE.equals(request.getHasConversion())) {
+            product.getConversions().addAll(buildConversions(product, request.getConversions()));
+        }
+
+        product.getMaterials().clear();
+        if (Boolean.TRUE.equals(request.getHasMaterials())) {
+            product.getMaterials().addAll(buildMaterials(product, request.getMaterials()));
+        }
 
         Product saved = productRepository.save(product);
-        return productMapper.toManageDetailDto(saved);
+        return new ProductIdResponse(saved.getId());
     }
 
     @Override
@@ -198,211 +160,6 @@ public class ProductServiceImpl implements ProductService {
         }
 
         productRepository.save(product);
-    }
-
-    @Override
-    public ProductStatusUpdateResponse updateStatus(Long id, ProductStatusUpdateRequest request) {
-        if (request.getStatus() == ProductStatus.DELETED) {
-            throw new BadRequestException("Use DELETE /api/products/{id} to delete a product");
-        }
-        Product product = requireActiveProduct(id);
-        product.setStatus(request.getStatus());
-        Product saved = productRepository.save(product);
-        return ProductStatusUpdateResponse.builder()
-                .id(saved.getId())
-                .status(saved.getStatus())
-                .updatedAt(saved.getUpdatedAt().toInstant(ZoneOffset.UTC))
-                .build();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ProductBarcodeDto> listBarcodes(Long productId) {
-        Product product = requireActiveProduct(productId);
-        return productMapper.activeBarcodes(product).stream()
-                .map(productMapper::toBarcodeDto)
-                .toList();
-    }
-
-    @Override
-    public ProductBarcodeDto addBarcode(Long productId, AddBarcodeRequest request) {
-        Product product = requireActiveProduct(productId);
-        String barcodeValue = request.getBarcode().trim();
-
-        if (productBarcodeRepository.existsByBarcodeAndDeletedAtIsNull(barcodeValue)) {
-            throw new ConflictException("Barcode already exists: " + barcodeValue);
-        }
-
-        if (request.isDefault()) {
-            clearDefaultBarcode(product);
-        }
-
-        ProductBarcode barcode = ProductBarcode.builder()
-                .product(product)
-                .barcode(barcodeValue)
-                .sellingPrice(request.getSellingPrice())
-                .buyingPrice(request.getBuyingPrice())
-                .stock(request.getStock())
-                .isDefault(request.isDefault() || productMapper.activeBarcodes(product).isEmpty())
-                .build();
-
-        product.getBarcodes().add(barcode);
-        productRepository.save(product);
-        return productMapper.toBarcodeDto(barcode);
-    }
-
-    @Override
-    public void deleteBarcode(Long productId, Long barcodeId) {
-        Product product = requireActiveProduct(productId);
-        List<ProductBarcode> activeBarcodes = productMapper.activeBarcodes(product);
-
-        if (activeBarcodes.size() <= 1) {
-            throw new BadRequestException("Cannot delete the only barcode");
-        }
-
-        ProductBarcode barcode = activeBarcodes.stream()
-                .filter(item -> item.getId().equals(barcodeId))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Barcode not found"));
-
-        boolean wasDefault = barcode.isDefault();
-        barcode.setDeletedAt(LocalDateTime.now());
-        barcode.setDefault(false);
-
-        if (wasDefault) {
-            productMapper.activeBarcodes(product).stream()
-                    .filter(item -> !item.getId().equals(barcodeId))
-                    .findFirst()
-                    .ifPresent(item -> item.setDefault(true));
-        }
-
-        productRepository.save(product);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public ProductReferenceDataDto getReferenceData() {
-        return ProductReferenceDataDto.builder()
-                .attributes(attributeRepository.findAll().stream().map(productMapper::toReferenceItem).toList())
-                .categories(categoryRepository.findAll().stream().map(productMapper::toReferenceItem).toList())
-                .manufacturers(manufacturerRepository.findAll().stream().map(productMapper::toReferenceItem).toList())
-                .suppliers(supplierRepository.findAll().stream().map(productMapper::toReferenceItem).toList())
-                .build();
-    }
-
-    @Override
-    public ReferenceItemDto createReferenceData(String type, CreateReferenceDataRequest request) {
-        String name = request.getName().trim();
-        return switch (type) {
-            case "attributes" -> {
-                if (attributeRepository.findByNameIgnoreCase(name).isPresent()) {
-                    throw new ConflictException("Attribute already exists: " + name);
-                }
-                ProductAttribute saved = attributeRepository.save(ProductAttribute.builder().name(name).build());
-                yield productMapper.toReferenceItem(saved);
-            }
-            case "categories" -> {
-                if (categoryRepository.findByNameIgnoreCase(name).isPresent()) {
-                    throw new ConflictException("Category already exists: " + name);
-                }
-                ProductCategory saved = categoryRepository.save(ProductCategory.builder()
-                        .name(name)
-                        .slug(slugify(name))
-                        .build());
-                yield productMapper.toReferenceItem(saved);
-            }
-            case "manufacturers" -> {
-                if (manufacturerRepository.findByNameIgnoreCase(name).isPresent()) {
-                    throw new ConflictException("Manufacturer already exists: " + name);
-                }
-                Manufacturer saved = manufacturerRepository.save(Manufacturer.builder().name(name).build());
-                yield productMapper.toReferenceItem(saved);
-            }
-            case "suppliers" -> {
-                if (supplierRepository.findByNameIgnoreCase(name).isPresent()) {
-                    throw new ConflictException("Supplier already exists: " + name);
-                }
-                Supplier saved = supplierRepository.save(Supplier.builder().name(name).build());
-                yield productMapper.toReferenceItem(saved);
-            }
-            default -> throw new BadRequestException("Unsupported reference data type: " + type);
-        };
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public StockSummaryDto getStockSummary(Long productId) {
-        Product product = requireActiveProduct(productId);
-        return productMapper.toStockSummaryDto(product);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<ProductDto> getAllProductsForCashier() {
-        return productRepository.findAllByDeletedAtIsNull().stream()
-                .map(productMapper::toCashierDto)
-                .toList();
-    }
-
-    @Override
-    public ProductDto createLegacyProduct(CreateProductRequest request) {
-        if (productRepository.existsByCodeAndDeletedAtIsNull(request.getCode())) {
-            throw new ConflictException("Product code already exists: " + request.getCode());
-        }
-
-        Product product = Product.builder()
-                .code(request.getCode())
-                .baseName(request.getName())
-                .name(request.getName())
-                .type(ProductType.INVENTORY)
-                .status(ProductStatus.ACTIVE)
-                .build();
-
-        ProductBarcode barcode = ProductBarcode.builder()
-                .product(product)
-                .barcode(request.getCode())
-                .sellingPrice(request.getPrice())
-                .buyingPrice(request.getPrice())
-                .stock(request.getStock())
-                .isDefault(true)
-                .build();
-        product.getBarcodes().add(barcode);
-
-        Product saved = productRepository.save(product);
-        return productMapper.toCashierDto(saved);
-    }
-
-    @Override
-    public ProductDto updateLegacyProduct(Long id, UpdateProductRequest request) {
-        Product product = requireActiveProduct(id);
-
-        if (request.getCode() != null && !request.getCode().equals(product.getCode())) {
-            if (productRepository.existsByCodeAndDeletedAtIsNull(request.getCode())) {
-                throw new ConflictException("Product code already exists: " + request.getCode());
-            }
-            product.setCode(request.getCode());
-        }
-        if (request.getName() != null) {
-            product.setBaseName(request.getName());
-            product.setName(request.getName());
-        }
-
-        ProductBarcode defaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(product));
-        if (defaultBarcode != null) {
-            if (request.getCode() != null) {
-                defaultBarcode.setBarcode(request.getCode());
-            }
-            if (request.getPrice() != null) {
-                defaultBarcode.setSellingPrice(request.getPrice());
-                defaultBarcode.setBuyingPrice(request.getPrice());
-            }
-            if (request.getStock() != null) {
-                defaultBarcode.setStock(request.getStock());
-            }
-        }
-
-        Product saved = productRepository.save(product);
-        return productMapper.toCashierDto(saved);
     }
 
     @Override
@@ -471,7 +228,7 @@ public class ProductServiceImpl implements ProductService {
         return productMapper.toCashierDto(barcode.getProduct());
     }
 
-    private void validateManageRequest(ProductManageSaveRequest request) {
+    private void validateManageRequest(Long productId, ProductManageSaveRequest request) {
         if (request.getStatus() == ProductStatus.DELETED) {
             throw new BadRequestException("Use DELETE /api/products/{id} to delete a product");
         }
@@ -517,10 +274,47 @@ public class ProductServiceImpl implements ProductService {
             throw new ResourceNotFoundException("Manufacturer not found: " + request.getManufacturerId());
         }
         if (request.getSupplierIds() != null) {
+            Set<Long> supplierIds = new HashSet<>();
             for (Long supplierId : request.getSupplierIds()) {
+                if (!supplierIds.add(supplierId)) {
+                    throw new BadRequestException("Duplicate supplier in request: " + supplierId);
+                }
                 if (!supplierRepository.existsById(supplierId)) {
                     throw new ResourceNotFoundException("Supplier not found: " + supplierId);
                 }
+            }
+        }
+
+        if (Boolean.TRUE.equals(request.getHasConversion())) {
+            validateCircularConversions(productId, request.getConversions());
+        }
+    }
+
+    private void validateCircularConversions(Long currentProductId, List<ProductManageSaveRequest.ConversionInput> inputs) {
+        if (inputs == null || inputs.isEmpty()) return;
+
+        Set<Long> toCheck = new HashSet<>();
+        for (ProductManageSaveRequest.ConversionInput input : inputs) {
+            toCheck.add(input.getParentProductId());
+        }
+
+        Set<Long> visited = new HashSet<>();
+        Queue<Long> queue = new LinkedList<>(toCheck);
+
+        while (!queue.isEmpty()) {
+            Long parentId = queue.poll();
+            if (currentProductId != null && parentId.equals(currentProductId)) {
+                throw new ConflictException("Circular conversion detected! Product cannot be a conversion parent of itself.");
+            }
+            if (!visited.add(parentId)) {
+                continue; // Already verified this path
+            }
+            Product parentProduct = productRepository.findByIdAndDeletedAtIsNull(parentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent product not found: " + parentId));
+
+            // Walk up the conversion tree (find parents of this parent)
+            for (ProductConversion conversion : parentProduct.getConversions()) {
+                queue.add(conversion.getParentProduct().getId());
             }
         }
     }
@@ -534,11 +328,7 @@ public class ProductServiceImpl implements ProductService {
                 : null);
     }
 
-    private List<ProductBarcode> buildBarcodes(
-            Product product,
-            List<ProductManageSaveRequest.BarcodeInput> inputs,
-            Long productId
-    ) {
+    private List<ProductBarcode> buildBarcodes(Product product, List<ProductManageSaveRequest.BarcodeInput> inputs) {
         List<ProductBarcode> barcodes = new ArrayList<>();
         for (ProductManageSaveRequest.BarcodeInput input : inputs) {
             barcodes.add(ProductBarcode.builder()
@@ -553,7 +343,7 @@ public class ProductServiceImpl implements ProductService {
         return barcodes;
     }
 
-    private void replaceBarcodes(Product product, List<ProductManageSaveRequest.BarcodeInput> inputs, Long productId) {
+    private void replaceBarcodes(Product product, List<ProductManageSaveRequest.BarcodeInput> inputs) {
         Set<Long> keptIds = new HashSet<>();
         for (ProductManageSaveRequest.BarcodeInput input : inputs) {
             if (input.getId() != null) {
@@ -589,10 +379,7 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private List<ProductAttributeValue> buildAttributeValues(
-            Product product,
-            List<ProductManageSaveRequest.AttributeInput> inputs
-    ) {
+    private List<ProductAttributeValue> buildAttributeValues(Product product, List<ProductManageSaveRequest.AttributeInput> inputs) {
         if (inputs == null || inputs.isEmpty()) {
             return List.of();
         }
@@ -630,8 +417,37 @@ public class ProductServiceImpl implements ProductService {
         product.getSuppliers().addAll(resolveSuppliers(supplierIds));
     }
 
-    private void clearDefaultBarcode(Product product) {
-        productMapper.activeBarcodes(product).forEach(barcode -> barcode.setDefault(false));
+    private List<ProductConversion> buildConversions(Product product, List<ProductManageSaveRequest.ConversionInput> inputs) {
+        if (inputs == null || inputs.isEmpty()) return List.of();
+        
+        List<ProductConversion> list = new ArrayList<>();
+        for (ProductManageSaveRequest.ConversionInput input : inputs) {
+            Product parentProduct = productRepository.findByIdAndDeletedAtIsNull(input.getParentProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent product not found: " + input.getParentProductId()));
+            list.add(ProductConversion.builder()
+                    .childProduct(product)
+                    .parentProduct(parentProduct)
+                    .parentQuantity(input.getParentQuantity())
+                    .childQuantity(input.getChildQuantity())
+                    .build());
+        }
+        return list;
+    }
+
+    private List<ProductMaterial> buildMaterials(Product product, List<ProductManageSaveRequest.MaterialInput> inputs) {
+        if (inputs == null || inputs.isEmpty()) return List.of();
+        
+        List<ProductMaterial> list = new ArrayList<>();
+        for (ProductManageSaveRequest.MaterialInput input : inputs) {
+            Product materialProduct = productRepository.findByIdAndDeletedAtIsNull(input.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Material product not found: " + input.getProductId()));
+            list.add(ProductMaterial.builder()
+                    .product(product)
+                    .materialProduct(materialProduct)
+                    .quantity(input.getQuantity())
+                    .build());
+        }
+        return list;
     }
 
     private Product requireActiveProduct(Long id) {
@@ -646,17 +462,5 @@ public class ProductServiceImpl implements ProductService {
     private String generateProductCode(Long productId) {
         int year = LocalDateTime.now().getYear();
         return "PRD-" + year + "-" + String.format("%05d", productId);
-    }
-
-    private String slugify(String value) {
-        String slug = value.trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9\\s-]", "")
-                .replaceAll("\\s+", "-")
-                .replaceAll("-+", "-");
-        if (!StringUtils.hasText(slug)) {
-            slug = "item-" + Math.abs(value.hashCode());
-        }
-        return slug;
     }
 }

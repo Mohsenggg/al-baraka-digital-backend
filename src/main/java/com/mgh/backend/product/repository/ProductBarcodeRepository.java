@@ -24,8 +24,6 @@ public interface ProductBarcodeRepository extends JpaRepository<ProductBarcode, 
             SELECT b FROM ProductBarcode b
             JOIN FETCH b.product p
             LEFT JOIN FETCH p.barcodes
-            LEFT JOIN FETCH p.attributeValues av
-            LEFT JOIN FETCH av.attribute
             LEFT JOIN FETCH p.category
             WHERE b.barcode = :barcode AND b.deletedAt IS NULL AND p.deletedAt IS NULL
             """)
@@ -33,11 +31,5 @@ public interface ProductBarcodeRepository extends JpaRepository<ProductBarcode, 
 
     Optional<ProductBarcode> findByIdAndProductIdAndDeletedAtIsNull(Long id, Long productId);
 
-    List<ProductBarcode> findAllByProductIdAndDeletedAtIsNullOrderByIsDefaultDescIdAsc(Long productId);
-
     boolean existsByBarcodeAndDeletedAtIsNull(String barcode);
-
-    boolean existsByBarcodeAndDeletedAtIsNullAndIdNot(String barcode, Long id);
-
-    long countByProductIdAndDeletedAtIsNull(Long productId);
 }

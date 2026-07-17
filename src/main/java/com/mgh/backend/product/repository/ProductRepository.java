@@ -17,7 +17,7 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-    @EntityGraph(attributePaths = {"barcodes", "attributeValues.attribute", "category", "suppliers"})
+    @EntityGraph(attributePaths = {"barcodes"})
     Optional<Product> findByIdAndDeletedAtIsNull(Long id);
 
     Optional<Product> findByCodeAndDeletedAtIsNull(String code);
@@ -26,30 +26,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("SELECT p FROM Product p WHERE p.code = :code AND p.deletedAt IS NULL")
     Optional<Product> findWithLockByCode(@Param("code") String code);
 
-    @EntityGraph(attributePaths = {"barcodes", "attributeValues.attribute", "category"})
+    @EntityGraph(attributePaths = {"barcodes", "category", "manufacturer"})
     Page<Product> findAll(Specification<Product> spec, Pageable pageable);
-
-    @EntityGraph(attributePaths = {"barcodes", "attributeValues.attribute", "category"})
-    List<Product> findTop50ByDeletedAtIsNullAndNameContainingIgnoreCaseOrCodeContainingIgnoreCase(
-            String name,
-            String code
-    );
 
     boolean existsByCodeAndDeletedAtIsNull(String code);
 
-    boolean existsByCodeAndDeletedAtIsNullAndIdNot(String code, Long id);
-
-    @EntityGraph(attributePaths = {"barcodes"})
-    List<Product> findAllByDeletedAtIsNull();
-
     @Query("""
-            SELECT DISTINCT p FROM Product p
-            LEFT JOIN FETCH p.barcodes b
-            LEFT JOIN FETCH p.attributeValues av
-            LEFT JOIN FETCH av.attribute
-            LEFT JOIN FETCH p.category
-            LEFT JOIN FETCH p.suppliers
-            LEFT JOIN FETCH p.manufacturer
+            SELECT p FROM Product p
             WHERE p.id = :id AND p.deletedAt IS NULL
             """)
     Optional<Product> findDetailedById(@Param("id") Long id);

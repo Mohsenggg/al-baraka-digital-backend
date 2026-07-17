@@ -102,6 +102,14 @@ public class Product {
     @Builder.Default
     private List<ProductAttributeValue> attributeValues = new ArrayList<>();
 
+    @OneToMany(mappedBy = "childProduct", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProductConversion> conversions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ProductMaterial> materials = new ArrayList<>();
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "product_supplier_links",
