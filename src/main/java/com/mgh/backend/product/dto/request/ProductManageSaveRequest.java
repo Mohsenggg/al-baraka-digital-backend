@@ -39,14 +39,12 @@ public class ProductManageSaveRequest {
     private Long manufacturerId;
     private List<Long> supplierIds;
 
-    @NotNull
-    private Boolean hasConversion;
+    private Boolean hasConversion = false;
 
     @Valid
     private List<ConversionInput> conversions;
 
-    @NotNull
-    private Boolean hasMaterials;
+    private Boolean hasMaterials = false;
 
     @Valid
     private List<MaterialInput> materials;

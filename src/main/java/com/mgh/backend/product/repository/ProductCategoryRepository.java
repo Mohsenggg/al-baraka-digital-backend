@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ProductCategoryRepository extends JpaRepository<ProductCategory, Long> {
 
-    Optional<ProductCategory> findBySlugIgnoreCase(String slug);
+//    Optional<ProductCategory> findBySlugIgnoreCase(String slug);
 
     Optional<ProductCategory> findByNameIgnoreCase(String name);
 }

@@ -32,6 +32,4 @@ public class ProductCategory {
     @Column(nullable = false, unique = true, length = 255)
     private String name;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String slug;
 }

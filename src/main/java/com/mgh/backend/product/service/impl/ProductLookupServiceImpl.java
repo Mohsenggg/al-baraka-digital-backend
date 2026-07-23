@@ -44,7 +44,6 @@ public class ProductLookupServiceImpl implements ProductLookupService {
         }
         ProductCategory saved = categoryRepository.save(ProductCategory.builder()
                 .name(name)
-                .slug(slugify(name))
                 .build());
         return productMapper.toReferenceItem(saved);
     }
@@ -100,12 +99,4 @@ public class ProductLookupServiceImpl implements ProductLookupService {
         return productMapper.toReferenceItem(saved);
     }
 
-    private String slugify(String input) {
-        if (input == null) return null;
-        return input.toLowerCase()
-                .replaceAll("[^a-z0-9\\s-]", "")
-                .replaceAll("\\s+", "-")
-                .replaceAll("-+", "-")
-                .trim();
-    }
 }
