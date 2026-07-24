@@ -35,6 +35,7 @@ public class ProductManageDetailDto {
     @Builder
     public static class ConversionDto {
         private Long parentProductId;
+        private String parentProductName;
         private Integer parentQuantity;
         private Integer childQuantity;
     }

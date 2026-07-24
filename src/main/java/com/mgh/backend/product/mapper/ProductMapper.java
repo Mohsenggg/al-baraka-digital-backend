@@ -23,7 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
-public interface ProductMapper {
+public interface    ProductMapper {
 
     default ProductBarcodeFormDto toBarcodeFormDto(ProductBarcode barcode) {
         return ProductBarcodeFormDto.builder()
@@ -107,6 +107,7 @@ public interface ProductMapper {
     default ProductManageDetailDto.ConversionDto toConversionDto(ProductConversion conversion) {
         return ProductManageDetailDto.ConversionDto.builder()
                 .parentProductId(conversion.getParentProduct().getId())
+                .parentProductName(conversion.getParentProduct().getName())
                 .parentQuantity(conversion.getParentQuantity())
                 .childQuantity(conversion.getChildQuantity())
                 .build();
