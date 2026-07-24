@@ -45,6 +45,7 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .paymentMethod(parsePaymentMethod(request.getPaymentMethod()))
                 .receiptType(parseReceiptType(request.getReceiptType()))
                 .customerName(request.getCustomerName())
+                .customerPhone(request.getCustomerPhone())
                 .tax(request.getTax())
                 .discount(request.getDiscount())
                 .status(ReceiptStatus.SAVED)
@@ -83,6 +84,9 @@ public class ReceiptServiceImpl implements ReceiptService {
         }
         if (request.getCustomerName() != null) {
             receipt.setCustomerName(request.getCustomerName());
+        }
+        if (request.getCustomerPhone() != null) {
+            receipt.setCustomerPhone(request.getCustomerPhone());
         }
         receipt.setTax(request.getTax());
         receipt.setDiscount(request.getDiscount());
@@ -429,6 +433,7 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .receiptType(receipt.getReceiptType())
                 .status(receipt.getStatus())
                 .customerName(receipt.getCustomerName())
+                .customerPhone(receipt.getCustomerPhone())
                 .customerId(receipt.getCustomer() != null ? receipt.getCustomer().getId() : null)
                 .cashierId(receipt.getCashier() != null ? receipt.getCashier().getId() : null)
                 .cashierName(receipt.getCashier() != null && receipt.getCashier().getFullName() != null
@@ -465,6 +470,7 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .totalAmount(receipt.getTotalAmount())
                 .totalItems(receipt.getTotalItems())
                 .customerName(receipt.getCustomerName())
+                .customerPhone(receipt.getCustomerPhone())
                 .status(receipt.getStatus())
                 .paymentMethod(receipt.getPaymentMethod())
                 .cashierName(receipt.getCashier() != null ? receipt.getCashier().getFullName() : null)

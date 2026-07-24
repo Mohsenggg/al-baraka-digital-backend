@@ -11,6 +11,7 @@ import java.util.List;
 @Data
 public class ReceiptRequestDto {
     private String customerName;
+    private String customerPhone;
     private Long customerId;
     @NotNull(message = "Cashier ID is required")
     private Long cashierId;

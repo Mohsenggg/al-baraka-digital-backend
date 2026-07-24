@@ -20,6 +20,7 @@ public class ReceiptListItemDto {
     private BigDecimal totalAmount;
     private Integer totalItems;
     private String customerName;
+    private String customerPhone;
     private ReceiptStatus status;
     private PaymentMethod paymentMethod;
     private String cashierName;

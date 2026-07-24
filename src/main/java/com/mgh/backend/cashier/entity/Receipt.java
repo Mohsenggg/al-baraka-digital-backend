@@ -83,6 +83,9 @@ public class Receipt {
     @Column(name = "customer_name")
     private String customerName;
 
+    @Column(name = "customer_phone")
+    private String customerPhone;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;

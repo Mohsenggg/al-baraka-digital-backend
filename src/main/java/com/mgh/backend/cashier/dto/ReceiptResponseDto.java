@@ -22,6 +22,7 @@ public class ReceiptResponseDto {
     private PaymentMethod paymentMethod;
     private ReceiptType receiptType;
     private String customerName;
+    private String customerPhone;
     private Long customerId;
     private Long cashierId;
     private String cashierName;
