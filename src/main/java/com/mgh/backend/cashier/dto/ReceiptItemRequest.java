@@ -18,8 +18,11 @@ public class ReceiptItemRequest {
 
     private String productName;
 
-    @DecimalMin(value = "0.00", message = "Price must be greater than or equal to 0")
-    private BigDecimal price;
+    @DecimalMin(value = "0.00", message = "Selling price must be greater than or equal to 0")
+    private BigDecimal sellingPrice;
+
+    @DecimalMin(value = "0.00", message = "Buying price must be greater than or equal to 0")
+    private BigDecimal buyingPrice;
 
     @DecimalMin(value = "0.001", message = "Quantity must be greater than 0")
     private Double quantity;

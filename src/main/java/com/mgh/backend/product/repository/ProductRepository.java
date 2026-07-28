@@ -45,13 +45,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                 pb.barcode, 
                 p.name, 
                 pb.sellingPrice, 
+                pb.buyingPrice,
                 COALESCE(SUM(b.stock), 0.0)
             )
             FROM Product p
             LEFT JOIN p.barcodes pb ON pb.isDefault = true AND pb.deletedAt IS NULL
             LEFT JOIN p.barcodes b ON b.deletedAt IS NULL
             WHERE p.deletedAt IS NULL AND p.status = :status
-            GROUP BY p.id, p.name, pb.barcode, pb.sellingPrice
+            GROUP BY p.id, p.name, pb.barcode, pb.sellingPrice, pb.buyingPrice
             """)
     List<LightweightProductDto> findAllActiveLightweightProducts(@Param("status") ProductStatus status);
 }

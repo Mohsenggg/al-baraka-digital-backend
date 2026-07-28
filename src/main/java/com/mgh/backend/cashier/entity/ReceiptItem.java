@@ -50,8 +50,11 @@ public class ReceiptItem {
     @Column(name = "product_name", length = 255)
     private String productName;
 
-    @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal price;
+    @Column(name = "selling_price", nullable = false, precision = 19, scale = 2)
+    private BigDecimal sellingPrice;
+
+    @Column(name = "buying_price", nullable = false, precision = 19, scale = 2)
+    private BigDecimal buyingPrice;
 
     @Column(nullable = false)
     private Double quantity;

@@ -10,7 +10,8 @@ public class ReceiptItemResponse {
     private String productCode;
     private String productName;
     private Double quantity;
-    private BigDecimal unitPrice;
+    private BigDecimal sellingPrice;
+    private BigDecimal buyingPrice;
     private BigDecimal totalPrice;
     private Double remainingStock;
     private Double currentRemainingStock;

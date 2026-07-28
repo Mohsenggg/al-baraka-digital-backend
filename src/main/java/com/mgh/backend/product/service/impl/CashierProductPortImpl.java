@@ -19,7 +19,8 @@ public class CashierProductPortImpl implements CashierProductPort {
         return new CashierSaleProduct(
                 product.getBarcode(),
                 product.getName(),
-                product.getPrice(),
+                product.getSellingPrice(),
+                product.getBuyingPrice(),
                 product.getStock()
         );
     }

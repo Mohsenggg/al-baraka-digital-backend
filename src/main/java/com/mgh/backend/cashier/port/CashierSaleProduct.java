@@ -5,7 +5,8 @@ import java.math.BigDecimal;
 public record CashierSaleProduct(
         String barcode,
         String name,
-        BigDecimal price,
+        BigDecimal sellingPrice,
+        BigDecimal buyingPrice,
         double remainingStock
 ) {
 }

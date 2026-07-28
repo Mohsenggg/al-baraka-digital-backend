@@ -129,7 +129,8 @@ public interface    ProductMapper {
                 .id(product.getId())
                 .barcode(defaultBarcode != null ? defaultBarcode.getBarcode() : product.getBarcode())
                 .name(product.getName())
-                .price(defaultBarcode != null ? defaultBarcode.getSellingPrice() : BigDecimal.ZERO)
+                .sellingPrice(defaultBarcode != null ? defaultBarcode.getSellingPrice() : BigDecimal.ZERO)
+                .buyingPrice(defaultBarcode != null ? defaultBarcode.getBuyingPrice() : BigDecimal.ZERO)
                 .stock(totalStock)
                 .build();
     }

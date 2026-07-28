@@ -302,17 +302,18 @@ public class ReceiptServiceImpl implements ReceiptService {
                 itemReq.getQuantity()
         );
 
-        BigDecimal unitPrice = product.price();
+        BigDecimal sellingPrice = product.sellingPrice();
         BigDecimal lineTotal = itemReq.getTotal() != null
                 ? itemReq.getTotal()
-                : unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+                : sellingPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
         return ReceiptItem.builder()
                 .receipt(receipt)
                 .productCode(product.barcode())
                 .productName(product.name())
                 .quantity(itemReq.getQuantity())
-                .price(unitPrice)
+                .sellingPrice(sellingPrice)
+                .buyingPrice(product.buyingPrice())
                 .total(lineTotal)
                 .remainingStock(product.remainingStock())
                 .build();
@@ -456,7 +457,8 @@ public class ReceiptServiceImpl implements ReceiptService {
         return ReceiptItemResponse.builder()
                 .productCode(item.getProductCode())
                 .productName(item.getProductName())
-                .unitPrice(item.getPrice())
+                .sellingPrice(item.getSellingPrice())
+                .buyingPrice(item.getBuyingPrice())
                 .quantity(item.getQuantity())
                 .totalPrice(item.getTotal())
                 .remainingStock(item.getRemainingStock())
