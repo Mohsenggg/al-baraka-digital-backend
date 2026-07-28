@@ -18,5 +18,5 @@ public class LightweightProductDto {
     private String barcode;
     private String name;
     private BigDecimal price;
-    private Long stock;
+    private Double stock;
 }

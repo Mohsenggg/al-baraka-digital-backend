@@ -2,9 +2,9 @@ package com.mgh.backend.cashier.port;
 
 public interface CashierProductPort {
 
-    CashierSaleProduct deductStock(String productCode, int quantity);
+    CashierSaleProduct deductStock(String productCode, double quantity);
 
-    void restoreStock(String productCode, int quantity);
+    void restoreStock(String productCode, double quantity);
 
-    Integer getCurrentStock(String productCode);
+    Double getCurrentStock(String productCode);
 }

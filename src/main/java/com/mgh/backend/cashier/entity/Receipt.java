@@ -48,7 +48,7 @@ public class Receipt {
     private BigDecimal totalAmount;
 
     @Column(name = "total_quantity", nullable = false)
-    private Integer totalQuantity;
+    private Double totalQuantity;
 
     @Column(name = "total_items", nullable = false)
     private Integer totalItems;

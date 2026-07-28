@@ -9,9 +9,9 @@ import java.math.BigDecimal;
 public class ReceiptItemResponse {
     private String productCode;
     private String productName;
-    private Integer quantity;
+    private Double quantity;
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
-    private Integer remainingStock;
-    private Integer currentRemainingStock;
+    private Double remainingStock;
+    private Double currentRemainingStock;
 }

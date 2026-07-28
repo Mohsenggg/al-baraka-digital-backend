@@ -45,7 +45,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                 pb.barcode, 
                 p.name, 
                 pb.sellingPrice, 
-                CAST(COALESCE(SUM(b.stock), 0) AS long)
+                COALESCE(SUM(b.stock), 0.0)
             )
             FROM Product p
             LEFT JOIN p.barcodes pb ON pb.isDefault = true AND pb.deletedAt IS NULL

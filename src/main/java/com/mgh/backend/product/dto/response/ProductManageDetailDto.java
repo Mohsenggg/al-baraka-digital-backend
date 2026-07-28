@@ -45,6 +45,6 @@ public class ProductManageDetailDto {
     @Builder
     public static class MaterialDto {
         private Long productId;
-        private Integer quantity;
+        private Double quantity;
     }
 }

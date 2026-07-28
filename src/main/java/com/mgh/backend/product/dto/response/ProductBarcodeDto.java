@@ -16,7 +16,7 @@ public class ProductBarcodeDto {
     private String barcode;
     private BigDecimal sellingPrice;
     private BigDecimal buyingPrice;
-    private Integer stock;
+    private Double stock;
 
     @JsonProperty("default")
     private boolean defaultBarcode;

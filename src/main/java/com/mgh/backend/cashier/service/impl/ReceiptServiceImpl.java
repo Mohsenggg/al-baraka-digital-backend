@@ -303,7 +303,9 @@ public class ReceiptServiceImpl implements ReceiptService {
         );
 
         BigDecimal unitPrice = product.price();
-        BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+        BigDecimal lineTotal = itemReq.getTotal() != null
+                ? itemReq.getTotal()
+                : unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
         return ReceiptItem.builder()
                 .receipt(receipt)
@@ -318,8 +320,8 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     private void restoreStockForItems(List<ReceiptItem> items) {
         for (ReceiptItem item : items) {
-            int restoredQuantity = item.getQuantity();
-            Integer stockBefore = cashierProductPort.getCurrentStock(item.getProductCode());
+            double restoredQuantity = item.getQuantity();
+            Double stockBefore = cashierProductPort.getCurrentStock(item.getProductCode());
             cashierProductPort.restoreStock(item.getProductCode(), restoredQuantity);
 
             log.debug("Restored stock for product '{}': {} + {} = {}",
@@ -329,8 +331,8 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     private void recalculateTotals(Receipt receipt) {
-        int totalQty = receipt.getItems().stream()
-                .mapToInt(ReceiptItem::getQuantity).sum();
+        double totalQty = receipt.getItems().stream()
+                .mapToDouble(ReceiptItem::getQuantity).sum();
         BigDecimal subtotal = receipt.getItems().stream()
                 .map(ReceiptItem::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

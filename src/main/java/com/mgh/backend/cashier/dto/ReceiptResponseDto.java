@@ -27,7 +27,7 @@ public class ReceiptResponseDto {
     private Long cashierId;
     private String cashierName;
     private BigDecimal totalAmount;
-    private Integer totalQuantity;
+    private Double totalQuantity;
     private Integer totalItems;
     private BigDecimal tax;
     private BigDecimal discount;

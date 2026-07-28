@@ -64,7 +64,7 @@ public interface    ProductMapper {
     default ProductListItemDto toListItemDto(Product product) {
         List<ProductBarcode> activeBarcodes = activeBarcodes(product);
         ProductBarcode defaultBarcode = findDefaultBarcode(activeBarcodes);
-        int totalStock = activeBarcodes.stream().mapToInt(ProductBarcode::getStock).sum();
+        double totalStock = activeBarcodes.stream().mapToDouble(ProductBarcode::getStock).sum();
 
         return ProductListItemDto.builder()
                 .id(product.getId())
@@ -123,7 +123,7 @@ public interface    ProductMapper {
     default ProductDto toCashierDto(Product product) {
         List<ProductBarcode> activeBarcodes = activeBarcodes(product);
         ProductBarcode defaultBarcode = findDefaultBarcode(activeBarcodes);
-        int totalStock = activeBarcodes.stream().mapToInt(ProductBarcode::getStock).sum();
+        double totalStock = activeBarcodes.stream().mapToDouble(ProductBarcode::getStock).sum();
 
         return ProductDto.builder()
                 .id(product.getId())

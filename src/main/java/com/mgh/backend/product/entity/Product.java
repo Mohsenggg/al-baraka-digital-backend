@@ -77,10 +77,10 @@ public class Product {
     private Manufacturer manufacturer;
 
     @Column(name = "min_stock_level")
-    private Integer minStockLevel;
+    private Double minStockLevel;
 
     @Column(name = "max_stock_level")
-    private Integer maxStockLevel;
+    private Double maxStockLevel;
 
     @Column(name = "image_url", length = 1000)
     private String imageUrl;

@@ -6,6 +6,6 @@ public record CashierSaleProduct(
         String barcode,
         String name,
         BigDecimal price,
-        int remainingStock
+        double remainingStock
 ) {
 }

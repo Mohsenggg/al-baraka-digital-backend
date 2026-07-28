@@ -49,7 +49,7 @@ public class ProductBarcode {
     private java.math.BigDecimal buyingPrice;
 
     @Column(nullable = false)
-    private Integer stock;
+    private Double stock;
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;

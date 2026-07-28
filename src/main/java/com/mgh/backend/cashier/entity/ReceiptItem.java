@@ -54,13 +54,13 @@ public class ReceiptItem {
     private BigDecimal price;
 
     @Column(nullable = false)
-    private Integer quantity;
+    private Double quantity;
 
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal total;
 
     @Column(name = "remaining_stock", nullable = false)
-    private Integer remainingStock;
+    private Double remainingStock;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "receipt_id", nullable = false)

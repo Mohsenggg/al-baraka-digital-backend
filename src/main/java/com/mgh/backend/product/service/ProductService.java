@@ -25,11 +25,11 @@ public interface ProductService {
     void deleteProduct(Long id);
 
     // Internal integration
-    ProductDto deductStockByBarcode(String barcode, int quantity);
+    ProductDto deductStockByBarcode(String barcode, double quantity);
 
-    void restoreStockByBarcode(String barcode, int quantity);
+    void restoreStockByBarcode(String barcode, double quantity);
 
-    Integer getStockByBarcode(String barcode);
+    Double getStockByBarcode(String barcode);
 
     List<LightweightProductDto> getAllActiveProducts();
 }

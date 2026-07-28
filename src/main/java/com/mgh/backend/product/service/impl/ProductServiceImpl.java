@@ -164,7 +164,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductDto deductStockByBarcode(String barcode, int quantity) {
+    public ProductDto deductStockByBarcode(String barcode, double quantity) {
         ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(barcode).orElse(null);
         if (lockedBarcode != null) {
             return deductFromBarcode(lockedBarcode, quantity);
@@ -184,7 +184,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void restoreStockByBarcode(String barcode, int quantity) {
+    public void restoreStockByBarcode(String barcode, double quantity) {
         ProductBarcode lockedBarcode = productBarcodeRepository.findWithLockByBarcode(barcode).orElse(null);
         if (lockedBarcode != null) {
             lockedBarcode.setStock(lockedBarcode.getStock() + quantity);
@@ -208,7 +208,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Integer getStockByBarcode(String barcode) {
+    public Double getStockByBarcode(String barcode) {
         return productBarcodeRepository.findActiveByBarcode(barcode)
                 .map(barcodeEntity -> totalStock(barcodeEntity.getProduct()))
                 .or(() -> productRepository.findByBarcodeAndDeletedAtIsNull(barcode)
@@ -222,7 +222,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.findAllActiveLightweightProducts(ProductStatus.ACTIVE);
     }
 
-    private ProductDto deductFromBarcode(ProductBarcode barcode, int quantity) {
+    private ProductDto deductFromBarcode(ProductBarcode barcode, double quantity) {
         if (barcode.getStock() < quantity) {
             Product product = barcode.getProduct();
             throw new InsufficientStockException(
@@ -462,8 +462,8 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
     }
 
-    private int totalStock(Product product) {
-        return productMapper.activeBarcodes(product).stream().mapToInt(ProductBarcode::getStock).sum();
+    private double totalStock(Product product) {
+        return productMapper.activeBarcodes(product).stream().mapToDouble(ProductBarcode::getStock).sum();
     }
 
     private String generateProductBarcode(Long productId) {

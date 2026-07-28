@@ -14,7 +14,7 @@ public class CashierProductPortImpl implements CashierProductPort {
     private final ProductService productService;
 
     @Override
-    public CashierSaleProduct deductStock(String productCode, int quantity) {
+    public CashierSaleProduct deductStock(String productCode, double quantity) {
         ProductDto product = productService.deductStockByBarcode(productCode, quantity);
         return new CashierSaleProduct(
                 product.getBarcode(),
@@ -25,12 +25,12 @@ public class CashierProductPortImpl implements CashierProductPort {
     }
 
     @Override
-    public void restoreStock(String productCode, int quantity) {
+    public void restoreStock(String productCode, double quantity) {
         productService.restoreStockByBarcode(productCode, quantity);
     }
 
     @Override
-    public Integer getCurrentStock(String productCode) {
+    public Double getCurrentStock(String productCode) {
         return productService.getStockByBarcode(productCode);
     }
 }

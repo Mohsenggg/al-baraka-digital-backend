@@ -20,7 +20,7 @@ public class ReceiptRequestDto {
     private List<ReceiptItemRequest> items;
     private String paymentMethod;
     private String receiptType;
-    private Integer totalQuantity;
+    private Double totalQuantity;
     private BigDecimal tax;
     private BigDecimal discount;
 }
