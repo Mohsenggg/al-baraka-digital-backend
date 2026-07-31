@@ -83,6 +83,9 @@ public class ProductManageSaveRequest {
         @NotNull
         @Min(1)
         private Integer childQuantity;
+
+        @JsonProperty("isDefault")
+        private boolean isDefault;
     }
 
     @Data

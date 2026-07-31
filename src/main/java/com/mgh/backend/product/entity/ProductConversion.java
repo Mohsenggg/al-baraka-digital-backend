@@ -37,4 +37,8 @@ public class ProductConversion {
 
     private Integer parentQuantity;
     private Integer childQuantity;
+
+    @Column(name = "is_default")
+    @Builder.Default
+    private boolean isDefault = false;
 }

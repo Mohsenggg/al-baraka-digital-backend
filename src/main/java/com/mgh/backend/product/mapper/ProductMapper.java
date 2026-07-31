@@ -110,6 +110,7 @@ public interface    ProductMapper {
                 .parentProductName(conversion.getParentProduct().getName())
                 .parentQuantity(conversion.getParentQuantity())
                 .childQuantity(conversion.getChildQuantity())
+                .isDefault(conversion.isDefault())
                 .build();
     }
 

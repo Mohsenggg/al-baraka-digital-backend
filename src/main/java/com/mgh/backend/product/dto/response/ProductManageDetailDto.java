@@ -38,6 +38,7 @@ public class ProductManageDetailDto {
         private String parentProductName;
         private Integer parentQuantity;
         private Integer childQuantity;
+        private boolean isDefault;
     }
 
     @Getter

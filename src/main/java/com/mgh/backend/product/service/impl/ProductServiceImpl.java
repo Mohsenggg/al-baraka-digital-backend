@@ -436,6 +436,7 @@ public class ProductServiceImpl implements ProductService {
                     .parentProduct(parentProduct)
                     .parentQuantity(input.getParentQuantity())
                     .childQuantity(input.getChildQuantity())
+                    .isDefault(input.isDefault())
                     .build());
         }
         return list;
