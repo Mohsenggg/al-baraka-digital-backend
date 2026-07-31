@@ -452,7 +452,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     private ReceiptItemResponse mapItemToDto(ReceiptItem item) {
-        Integer currentStock = cashierProductPort.getCurrentStock(item.getProductCode());
+        Double currentStock = cashierProductPort.getCurrentStock(item.getProductCode());
 
         return ReceiptItemResponse.builder()
                 .productCode(item.getProductCode())
