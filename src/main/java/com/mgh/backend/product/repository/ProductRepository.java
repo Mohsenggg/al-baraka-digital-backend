@@ -55,4 +55,21 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             GROUP BY p.id, p.name, pb.barcode, pb.sellingPrice, pb.buyingPrice
             """)
     List<LightweightProductDto> findAllActiveLightweightProducts(@Param("status") ProductStatus status);
+
+    @Query("""
+            SELECT new com.mgh.backend.product.dto.response.RefillOptionProjection(
+                c.childProduct.id,
+                c.parentProduct.id,
+                c.parentProduct.name,
+                c.parentQuantity,
+                c.childQuantity,
+                COALESCE(SUM(b.stock), 0.0),
+                c.isDefault
+            )
+            FROM ProductConversion c
+            LEFT JOIN c.parentProduct.barcodes b ON b.deletedAt IS NULL
+            WHERE c.childProduct.status = :status AND c.childProduct.deletedAt IS NULL
+            GROUP BY c.childProduct.id, c.parentProduct.id, c.parentProduct.name, c.parentQuantity, c.childQuantity, c.isDefault
+            """)
+    List<com.mgh.backend.product.dto.response.RefillOptionProjection> findActiveRefillOptions(@Param("status") ProductStatus status);
 }

@@ -397,7 +397,27 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(readOnly = true)
     public List<LightweightProductDto> getAllActiveProducts() {
-        return productRepository.findAllActiveLightweightProducts(ProductStatus.ACTIVE);
+        List<LightweightProductDto> products = productRepository.findAllActiveLightweightProducts(ProductStatus.ACTIVE);
+        List<com.mgh.backend.product.dto.response.RefillOptionProjection> activeOptions = productRepository.findActiveRefillOptions(ProductStatus.ACTIVE);
+        
+        java.util.Map<Long, List<ProductDto.RefillOptionDto>> optionsByChildId = new java.util.HashMap<>();
+        for (com.mgh.backend.product.dto.response.RefillOptionProjection proj : activeOptions) {
+            ProductDto.RefillOptionDto dto = ProductDto.RefillOptionDto.builder()
+                .parentProductId(proj.getParentProductId())
+                .parentProductName(proj.getParentProductName())
+                .parentQuantity(proj.getParentQuantity())
+                .childQuantity(proj.getChildQuantity())
+                .parentStock(proj.getParentStock())
+                .isDefault(proj.isDefault())
+                .build();
+            optionsByChildId.computeIfAbsent(proj.getChildProductId(), k -> new java.util.ArrayList<>()).add(dto);
+        }
+        
+        for (LightweightProductDto product : products) {
+            product.setRefillOptions(optionsByChildId.getOrDefault(product.getId(), new java.util.ArrayList<>()));
+        }
+        
+        return products;
     }
 
     private ProductDto deductFromBarcode(ProductBarcode barcode, double quantity) {
