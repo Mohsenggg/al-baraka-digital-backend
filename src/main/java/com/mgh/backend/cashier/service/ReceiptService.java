@@ -29,4 +29,8 @@ public interface ReceiptService {
     ReceiptNavigationWindowResponse getNavigationWindow(Long centerReceiptId, int before, int after);
 
     ReceiptNavigationResponse navigate(Long receiptId, NavigationDirection direction, int limit);
+
+    RefillValidateResponse validateRefill(RefillValidateRequest request);
+
+    com.mgh.backend.product.dto.response.ProductDto executeRefill(RefillExecuteRequest request);
 }

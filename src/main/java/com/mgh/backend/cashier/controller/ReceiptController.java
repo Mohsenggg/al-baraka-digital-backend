@@ -121,4 +121,14 @@ public class ReceiptController {
     public ResponseEntity<ReceiptResponseDto> draftReceipt(@PathVariable Long id) {
         return ResponseEntity.ok(receiptService.draftReceipt(id));
     }
+
+    @PostMapping("/refill/validate")
+    public ResponseEntity<RefillValidateResponse> validateRefill(@Valid @RequestBody RefillValidateRequest request) {
+        return ResponseEntity.ok(receiptService.validateRefill(request));
+    }
+
+    @PostMapping("/refill/execute")
+    public ResponseEntity<com.mgh.backend.product.dto.response.ProductDto> executeRefill(@Valid @RequestBody RefillExecuteRequest request) {
+        return ResponseEntity.ok(receiptService.executeRefill(request));
+    }
 }

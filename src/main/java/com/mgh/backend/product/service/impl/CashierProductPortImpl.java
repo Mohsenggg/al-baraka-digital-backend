@@ -34,4 +34,14 @@ public class CashierProductPortImpl implements CashierProductPort {
     public Double getCurrentStock(String productCode) {
         return productService.getStockByBarcode(productCode);
     }
+
+    @Override
+    public com.mgh.backend.cashier.dto.RefillValidateResponse validateRefill(com.mgh.backend.cashier.dto.RefillValidateRequest request) {
+        return productService.validateRefill(request);
+    }
+
+    @Override
+    public ProductDto executeRefill(com.mgh.backend.cashier.dto.RefillExecuteRequest request) {
+        return productService.executeRefill(request);
+    }
 }

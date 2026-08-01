@@ -29,7 +29,13 @@ public interface ProductService {
 
     void restoreStockByBarcode(String barcode, double quantity);
 
+    ProductDto getByBarcode(String barcode);
+
     Double getStockByBarcode(String barcode);
+
+    com.mgh.backend.cashier.dto.RefillValidateResponse validateRefill(com.mgh.backend.cashier.dto.RefillValidateRequest request);
+
+    ProductDto executeRefill(com.mgh.backend.cashier.dto.RefillExecuteRequest request);
 
     List<LightweightProductDto> getAllActiveProducts();
 }

@@ -218,6 +218,141 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
+    public ProductDto getByBarcode(String barcode) {
+        Product product = productBarcodeRepository.findActiveByBarcode(barcode)
+                .map(ProductBarcode::getProduct)
+                .or(() -> productRepository.findByBarcodeAndDeletedAtIsNull(barcode))
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with barcode: " + barcode));
+        
+        ProductDto dto = productMapper.toCashierDto(product);
+        
+        if (product.getConversions() != null && !product.getConversions().isEmpty()) {
+            List<ProductDto.RefillOptionDto> options = product.getConversions().stream()
+                .map(conv -> ProductDto.RefillOptionDto.builder()
+                    .parentProductId(conv.getParentProduct().getId())
+                    .parentProductName(conv.getParentProduct().getName())
+                    .parentQuantity(conv.getParentQuantity())
+                    .childQuantity(conv.getChildQuantity())
+                    .parentStock(totalStock(conv.getParentProduct()))
+                    .isDefault(conv.isDefault())
+                    .build())
+                .toList();
+            dto.setRefillOptions(options);
+        }
+        
+        return dto;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.mgh.backend.cashier.dto.RefillValidateResponse validateRefill(com.mgh.backend.cashier.dto.RefillValidateRequest request) {
+        Product childProduct = productBarcodeRepository.findActiveByBarcode(request.getChildBarcode())
+                .map(ProductBarcode::getProduct)
+                .or(() -> productRepository.findByBarcodeAndDeletedAtIsNull(request.getChildBarcode()))
+                .orElseThrow(() -> new ResourceNotFoundException("Child product not found: " + request.getChildBarcode()));
+        
+        ProductConversion conversion = childProduct.getConversions().stream()
+                .filter(c -> c.getParentProduct().getId().equals(request.getParentProductId()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("No conversion found for the specified parent product"));
+                
+        Product parentProduct = conversion.getParentProduct();
+        double parentTotalStock = totalStock(parentProduct);
+        
+        double requiredParentQty = (request.getRequestedChildQuantity() / conversion.getChildQuantity()) * conversion.getParentQuantity();
+        
+        if (parentTotalStock < requiredParentQty) {
+            throw new InsufficientStockException("Insufficient stock in parent product. Required: " + requiredParentQty + ", Available: " + parentTotalStock);
+        }
+        
+        ProductBarcode parentDefaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(parentProduct));
+        ProductBarcode childDefaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(childProduct));
+        
+        if (parentDefaultBarcode == null || childDefaultBarcode == null) {
+            throw new BadRequestException("Default barcode missing for parent or child product");
+        }
+        
+        java.math.BigDecimal parentBuyingPrice = parentDefaultBarcode.getBuyingPrice();
+        java.math.BigDecimal currentBuyingPrice = childDefaultBarcode.getBuyingPrice();
+        java.math.BigDecimal currentSellingPrice = childDefaultBarcode.getSellingPrice();
+        
+        // New Child Buying Price = (Parent Buying Price * Parent Quantity) / Child Quantity
+        java.math.BigDecimal newBuyingPrice = parentBuyingPrice
+                .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
+                .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
+                
+        boolean pricingChangeRequired = currentBuyingPrice.compareTo(newBuyingPrice) != 0;
+        
+        return com.mgh.backend.cashier.dto.RefillValidateResponse.builder()
+                .isValid(true)
+                .pricingChangeRequired(pricingChangeRequired)
+                .currentBuyingPrice(currentBuyingPrice)
+                .newBuyingPrice(newBuyingPrice)
+                .currentSellingPrice(currentSellingPrice)
+                .proposedSellingPrice(currentSellingPrice)
+                .build();
+    }
+
+    @Override
+    public ProductDto executeRefill(com.mgh.backend.cashier.dto.RefillExecuteRequest request) {
+        // Use the barcode table (same as validateRefill) — the child barcode "1112" lives
+        // in product_barcodes, NOT necessarily in products.barcode (the legacy field).
+        ProductBarcode childDefaultBarcode = productBarcodeRepository.findWithLockByBarcode(request.getChildBarcode())
+                .orElseThrow(() -> new ResourceNotFoundException("Child product not found: " + request.getChildBarcode()));
+
+        Product childProduct = childDefaultBarcode.getProduct();
+                
+        ProductConversion conversion = childProduct.getConversions().stream()
+                .filter(c -> c.getParentProduct().getId().equals(request.getParentProductId()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("No conversion found for the specified parent product"));
+                
+        Product parentProduct = productRepository.findDetailedById(request.getParentProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Parent product not found: " + request.getParentProductId()));
+                
+        double requiredParentQty = (request.getRequestedChildQuantity() / conversion.getChildQuantity()) * conversion.getParentQuantity();
+        
+        ProductBarcode parentDefaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(parentProduct));
+        
+        if (parentDefaultBarcode == null) {
+            throw new BadRequestException("Default barcode missing for parent product");
+        }
+        
+        // Re-calculate the expected pricing proposal
+        java.math.BigDecimal parentBuyingPrice = parentDefaultBarcode.getBuyingPrice();
+        java.math.BigDecimal newBuyingPrice = parentBuyingPrice
+                .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
+                .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
+                
+        boolean pricingChangeRequired = childDefaultBarcode.getBuyingPrice().compareTo(newBuyingPrice) != 0;
+        
+        if (pricingChangeRequired) {
+            if (!request.isAcceptPricingChange()) {
+                throw new BadRequestException("Pricing change is required but was not accepted");
+            }
+            if (request.getExpectedNewBuyingPrice() == null || request.getExpectedNewBuyingPrice().compareTo(newBuyingPrice) != 0) {
+                throw new ConflictException("The pricing proposal has expired or changed. Please re-validate.");
+            }
+        }
+        
+        // Deduct from parent
+        deductFromBarcode(parentDefaultBarcode, requiredParentQty);
+        
+        // Add to child
+        childDefaultBarcode.setStock(childDefaultBarcode.getStock() + request.getRequestedChildQuantity());
+        
+        if (pricingChangeRequired && request.isAcceptPricingChange()) {
+            childDefaultBarcode.setBuyingPrice(newBuyingPrice);
+            // Selling price is kept identical per our validation response
+        }
+        
+        productBarcodeRepository.save(childDefaultBarcode);
+        
+        return getByBarcode(request.getChildBarcode());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LightweightProductDto> getAllActiveProducts() {
         return productRepository.findAllActiveLightweightProducts(ProductStatus.ACTIVE);
     }

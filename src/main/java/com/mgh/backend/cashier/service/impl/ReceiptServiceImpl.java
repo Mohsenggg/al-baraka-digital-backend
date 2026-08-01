@@ -292,6 +292,17 @@ public class ReceiptServiceImpl implements ReceiptService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public RefillValidateResponse validateRefill(RefillValidateRequest request) {
+        return cashierProductPort.validateRefill(request);
+    }
+
+    @Override
+    public com.mgh.backend.product.dto.response.ProductDto executeRefill(RefillExecuteRequest request) {
+        return cashierProductPort.executeRefill(request);
+    }
+
     // ──────────────────────────────────────────────
     //  Private helpers
     // ──────────────────────────────────────────────

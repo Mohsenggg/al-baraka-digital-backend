@@ -7,6 +7,7 @@ import com.mgh.backend.product.dto.response.LightweightProductDto;
 import com.mgh.backend.product.dto.response.ProductIdResponse;
 import com.mgh.backend.product.dto.response.ProductListItemDto;
 import com.mgh.backend.product.dto.response.ProductManageDetailDto;
+import com.mgh.backend.product.dto.response.ProductDto;
 import com.mgh.backend.product.entity.ProductStatus;
 import com.mgh.backend.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -62,6 +63,11 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductManageDetailDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getById(id));
+    }
+
+    @GetMapping("/barcode/{barcode}")
+    public ResponseEntity<ProductDto> getByBarcode(@PathVariable String barcode) {
+        return ResponseEntity.ok(productService.getByBarcode(barcode));
     }
 
     @PostMapping
