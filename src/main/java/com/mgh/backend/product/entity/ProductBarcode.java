@@ -54,6 +54,9 @@ public class ProductBarcode {
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;
 
+    @Column(name = "expected_markup_percentage", precision = 19, scale = 2)
+    private java.math.BigDecimal expectedMarkupPercentage;
+
     @Column(name = "deleted_at")
     private java.time.LocalDateTime deletedAt;
 }

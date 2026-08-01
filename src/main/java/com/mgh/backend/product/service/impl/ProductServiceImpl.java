@@ -282,16 +282,8 @@ public class ProductServiceImpl implements ProductService {
                 .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
                 .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
         
-        // Current Markup % = (SellingPrice - BuyingPrice) / BuyingPrice × 100
-        // e.g. buying=80, selling=100 → markup = 25.00%
-        java.math.BigDecimal currentMarkupPercentage = java.math.BigDecimal.ZERO;
-        if (currentBuyingPrice.compareTo(java.math.BigDecimal.ZERO) != 0) {
-            currentMarkupPercentage = currentSellingPrice
-                    .subtract(currentBuyingPrice)
-                    .divide(currentBuyingPrice, 6, java.math.RoundingMode.HALF_UP)
-                    .multiply(java.math.BigDecimal.valueOf(100))
-                    .setScale(2, java.math.RoundingMode.HALF_UP);
-        }
+        // Current Markup % - retrieved directly from the barcode
+        java.math.BigDecimal currentMarkupPercentage = childDefaultBarcode.getExpectedMarkupPercentage();
         
         // Proposed Selling Price = newBuyingPrice × (1 + markup%/100)
         // e.g. newBuying=90, markup=25% → proposedSelling = 90 × 1.25 = 112.50
@@ -351,15 +343,8 @@ public class ProductServiceImpl implements ProductService {
                 .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
                 .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
         
-        // Re-derive current markup % from live DB prices
-        java.math.BigDecimal currentMarkupPercentage = java.math.BigDecimal.ZERO;
-        if (currentBuyingPrice.compareTo(java.math.BigDecimal.ZERO) != 0) {
-            currentMarkupPercentage = currentSellingPrice
-                    .subtract(currentBuyingPrice)
-                    .divide(currentBuyingPrice, 6, java.math.RoundingMode.HALF_UP)
-                    .multiply(java.math.BigDecimal.valueOf(100))
-                    .setScale(2, java.math.RoundingMode.HALF_UP);
-        }
+        // Retrieve current markup % from stored value
+        java.math.BigDecimal currentMarkupPercentage = childDefaultBarcode.getExpectedMarkupPercentage();
         
         java.math.BigDecimal markupMultiplier = java.math.BigDecimal.ONE
                 .add(currentMarkupPercentage.divide(java.math.BigDecimal.valueOf(100), 6, java.math.RoundingMode.HALF_UP));
@@ -538,6 +523,7 @@ public class ProductServiceImpl implements ProductService {
                     .buyingPrice(input.getBuyingPrice())
                     .stock(input.getStock())
                     .isDefault(input.isDefault())
+                    .expectedMarkupPercentage(calculateMarkupPercentage(input.getBuyingPrice(), input.getSellingPrice()))
                     .build());
         }
         return barcodes;
@@ -556,6 +542,7 @@ public class ProductServiceImpl implements ProductService {
                 existing.setBuyingPrice(input.getBuyingPrice());
                 existing.setStock(input.getStock());
                 existing.setDefault(input.isDefault());
+                existing.setExpectedMarkupPercentage(calculateMarkupPercentage(input.getBuyingPrice(), input.getSellingPrice()));
                 existing.setDeletedAt(null);
                 keptIds.add(existing.getId());
             } else {
@@ -566,6 +553,7 @@ public class ProductServiceImpl implements ProductService {
                         .buyingPrice(input.getBuyingPrice())
                         .stock(input.getStock())
                         .isDefault(input.isDefault())
+                        .expectedMarkupPercentage(calculateMarkupPercentage(input.getBuyingPrice(), input.getSellingPrice()))
                         .build();
                 product.getBarcodes().add(created);
             }
@@ -663,5 +651,16 @@ public class ProductServiceImpl implements ProductService {
     private String generateProductBarcode(Long productId) {
         int year = LocalDateTime.now().getYear();
         return "PRD-" + year + "-" + String.format("%05d", productId);
+    }
+
+    private java.math.BigDecimal calculateMarkupPercentage(java.math.BigDecimal buyingPrice, java.math.BigDecimal sellingPrice) {
+        if (buyingPrice == null || sellingPrice == null || buyingPrice.compareTo(java.math.BigDecimal.ZERO) == 0) {
+            return java.math.BigDecimal.ZERO;
+        }
+        return sellingPrice
+                .subtract(buyingPrice)
+                .divide(buyingPrice, 6, java.math.RoundingMode.HALF_UP)
+                .multiply(java.math.BigDecimal.valueOf(100))
+                .setScale(2, java.math.RoundingMode.HALF_UP);
     }
 }
