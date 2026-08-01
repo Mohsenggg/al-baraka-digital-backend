@@ -16,4 +16,7 @@ public class RefillValidateResponse {
     
     private BigDecimal currentSellingPrice;
     private BigDecimal proposedSellingPrice;
+    
+    /** Preserved markup % (e.g. 25.00 means 25%). Used for display and stale-check on execute. */
+    private BigDecimal currentMarkupPercentage;
 }

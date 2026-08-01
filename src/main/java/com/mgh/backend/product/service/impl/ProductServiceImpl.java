@@ -276,12 +276,35 @@ public class ProductServiceImpl implements ProductService {
         java.math.BigDecimal currentBuyingPrice = childDefaultBarcode.getBuyingPrice();
         java.math.BigDecimal currentSellingPrice = childDefaultBarcode.getSellingPrice();
         
+        // ── Pricing Rule ────────────────────────────────────────────────────────────
         // New Child Buying Price = (Parent Buying Price * Parent Quantity) / Child Quantity
         java.math.BigDecimal newBuyingPrice = parentBuyingPrice
                 .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
                 .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
-                
-        boolean pricingChangeRequired = currentBuyingPrice.compareTo(newBuyingPrice) != 0;
+        
+        // Current Markup % = (SellingPrice - BuyingPrice) / BuyingPrice × 100
+        // e.g. buying=80, selling=100 → markup = 25.00%
+        java.math.BigDecimal currentMarkupPercentage = java.math.BigDecimal.ZERO;
+        if (currentBuyingPrice.compareTo(java.math.BigDecimal.ZERO) != 0) {
+            currentMarkupPercentage = currentSellingPrice
+                    .subtract(currentBuyingPrice)
+                    .divide(currentBuyingPrice, 6, java.math.RoundingMode.HALF_UP)
+                    .multiply(java.math.BigDecimal.valueOf(100))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        
+        // Proposed Selling Price = newBuyingPrice × (1 + markup%/100)
+        // e.g. newBuying=90, markup=25% → proposedSelling = 90 × 1.25 = 112.50
+        java.math.BigDecimal markupMultiplier = java.math.BigDecimal.ONE
+                .add(currentMarkupPercentage.divide(java.math.BigDecimal.valueOf(100), 6, java.math.RoundingMode.HALF_UP));
+        java.math.BigDecimal proposedSellingPrice = newBuyingPrice
+                .multiply(markupMultiplier)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        // Pricing confirmation required if either buying OR selling price changes
+        boolean pricingChangeRequired = currentBuyingPrice.compareTo(newBuyingPrice) != 0
+                || currentSellingPrice.compareTo(proposedSellingPrice) != 0;
+        // ────────────────────────────────────────────────────────────────────────────
         
         return com.mgh.backend.cashier.dto.RefillValidateResponse.builder()
                 .isValid(true)
@@ -289,13 +312,14 @@ public class ProductServiceImpl implements ProductService {
                 .currentBuyingPrice(currentBuyingPrice)
                 .newBuyingPrice(newBuyingPrice)
                 .currentSellingPrice(currentSellingPrice)
-                .proposedSellingPrice(currentSellingPrice)
+                .proposedSellingPrice(proposedSellingPrice)
+                .currentMarkupPercentage(currentMarkupPercentage)
                 .build();
     }
 
     @Override
     public ProductDto executeRefill(com.mgh.backend.cashier.dto.RefillExecuteRequest request) {
-        // Use the barcode table (same as validateRefill) — the child barcode "1112" lives
+        // Use the barcode table (same as validateRefill) — the child barcode lives
         // in product_barcodes, NOT necessarily in products.barcode (the legacy field).
         ProductBarcode childDefaultBarcode = productBarcodeRepository.findWithLockByBarcode(request.getChildBarcode())
                 .orElseThrow(() -> new ResourceNotFoundException("Child product not found: " + request.getChildBarcode()));
@@ -318,35 +342,69 @@ public class ProductServiceImpl implements ProductService {
             throw new BadRequestException("Default barcode missing for parent product");
         }
         
-        // Re-calculate the expected pricing proposal
+        // ── Re-derive pricing proposal (must exactly match what was validated) ────
+        java.math.BigDecimal currentBuyingPrice  = childDefaultBarcode.getBuyingPrice();
+        java.math.BigDecimal currentSellingPrice = childDefaultBarcode.getSellingPrice();
+        
         java.math.BigDecimal parentBuyingPrice = parentDefaultBarcode.getBuyingPrice();
         java.math.BigDecimal newBuyingPrice = parentBuyingPrice
                 .multiply(java.math.BigDecimal.valueOf(conversion.getParentQuantity()))
                 .divide(java.math.BigDecimal.valueOf(conversion.getChildQuantity()), 2, java.math.RoundingMode.HALF_UP);
-                
-        boolean pricingChangeRequired = childDefaultBarcode.getBuyingPrice().compareTo(newBuyingPrice) != 0;
+        
+        // Re-derive current markup % from live DB prices
+        java.math.BigDecimal currentMarkupPercentage = java.math.BigDecimal.ZERO;
+        if (currentBuyingPrice.compareTo(java.math.BigDecimal.ZERO) != 0) {
+            currentMarkupPercentage = currentSellingPrice
+                    .subtract(currentBuyingPrice)
+                    .divide(currentBuyingPrice, 6, java.math.RoundingMode.HALF_UP)
+                    .multiply(java.math.BigDecimal.valueOf(100))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        
+        java.math.BigDecimal markupMultiplier = java.math.BigDecimal.ONE
+                .add(currentMarkupPercentage.divide(java.math.BigDecimal.valueOf(100), 6, java.math.RoundingMode.HALF_UP));
+        java.math.BigDecimal proposedSellingPrice = newBuyingPrice
+                .multiply(markupMultiplier)
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        
+        boolean pricingChangeRequired = currentBuyingPrice.compareTo(newBuyingPrice) != 0
+                || currentSellingPrice.compareTo(proposedSellingPrice) != 0;
+        // ─────────────────────────────────────────────────────────────────────────
         
         if (pricingChangeRequired) {
             if (!request.isAcceptPricingChange()) {
                 throw new BadRequestException("Pricing change is required but was not accepted");
             }
-            if (request.getExpectedNewBuyingPrice() == null || request.getExpectedNewBuyingPrice().compareTo(newBuyingPrice) != 0) {
-                throw new ConflictException("The pricing proposal has expired or changed. Please re-validate.");
+            // Verify the validated proposal hasn't gone stale (prices or markup changed since validate call)
+            if (request.getExpectedNewBuyingPrice() == null
+                    || request.getExpectedNewBuyingPrice().compareTo(newBuyingPrice) != 0) {
+                throw new ConflictException("The pricing proposal has expired or changed (buying price). Please re-validate.");
+            }
+            if (request.getExpectedProposedSellingPrice() == null
+                    || request.getExpectedProposedSellingPrice().compareTo(proposedSellingPrice) != 0) {
+                throw new ConflictException("The pricing proposal has expired or changed (selling price). Please re-validate.");
+            }
+            if (request.getExpectedMarkupPercentage() == null
+                    || request.getExpectedMarkupPercentage().compareTo(currentMarkupPercentage) != 0) {
+                throw new ConflictException("The pricing proposal has expired or changed (markup). Please re-validate.");
             }
         }
         
-        // Deduct from parent
+        // ── Execute atomically ────────────────────────────────────────────────────
+        // 1. Deduct from parent stock
         deductFromBarcode(parentDefaultBarcode, requiredParentQty);
         
-        // Add to child
+        // 2. Add to child stock
         childDefaultBarcode.setStock(childDefaultBarcode.getStock() + request.getRequestedChildQuantity());
         
+        // 3. Update child buying price AND selling price (markup-preserved)
         if (pricingChangeRequired && request.isAcceptPricingChange()) {
             childDefaultBarcode.setBuyingPrice(newBuyingPrice);
-            // Selling price is kept identical per our validation response
+            childDefaultBarcode.setSellingPrice(proposedSellingPrice);
         }
         
         productBarcodeRepository.save(childDefaultBarcode);
+        // ─────────────────────────────────────────────────────────────────────────
         
         return getByBarcode(request.getChildBarcode());
     }

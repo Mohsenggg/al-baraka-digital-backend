@@ -23,4 +23,7 @@ public class RefillExecuteRequest {
     // Expected prices to ensure validation hasn't gone stale
     private BigDecimal expectedNewBuyingPrice;
     private BigDecimal expectedProposedSellingPrice;
+    
+    /** The markup % preserved during validation — used for stale-check on re-compute. */
+    private BigDecimal expectedMarkupPercentage;
 }
