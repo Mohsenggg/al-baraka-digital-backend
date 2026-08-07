@@ -11,10 +11,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TotalsElement implements ReceiptElement {
-    private String subtotal;
-    private String taxAmount;
+    private String totalItemsCount;
+    private String totalItemsAmount;
     private String discountAmount;
-    private String grandTotal;
+    private String netTotal;
+    private String paidAmount;
+    private String remainingAmount;
 
     @Override
     public String getType() {

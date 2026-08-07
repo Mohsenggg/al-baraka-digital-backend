@@ -3,6 +3,8 @@ package com.mgh.backend.cashier.printing.renderer;
 import com.github.anastaciocintra.escpos.EscPos;
 import com.github.anastaciocintra.escpos.EscPosConst;
 import com.github.anastaciocintra.escpos.Style;
+import com.github.anastaciocintra.escpos.barcode.BarCode;
+import com.github.anastaciocintra.escpos.charactercode.EscPosCharsetEncoding;
 import com.mgh.backend.cashier.printing.model.ReceiptDocument;
 import com.mgh.backend.cashier.printing.model.ReceiptElement;
 import com.mgh.backend.cashier.printing.model.elements.*;
@@ -14,9 +16,24 @@ import java.io.IOException;
 @Component
 public class ReceiptEscPosRenderer {
 
+    // 80mm printers typically support 48 characters per line (Font A: 12x24, 576 dots)
+    private static final int LINE_WIDTH = 48; 
+    
+    // Widths for columns: Item(22), Qty(8), Price(9), Total(9)
+    private static final int COL_TOTAL_WIDTH = 9;
+    private static final int COL_PRICE_WIDTH = 9;
+    private static final int COL_QTY_WIDTH = 8;
+    private static final int COL_ITEM_WIDTH = 22;
+
     public byte[] render(ReceiptDocument doc) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         EscPos escpos = new EscPos(baos);
+
+        // Configure encoding for Arabic (Windows-1256 is usually mapped to code page 22 on Xprinter)
+        // Note: Full RTL shaping depends on printer firmware. If the printer prints disconnected Arabic,
+        // an external shaping library or image-based printing (Graphics) is required.
+        EscPosCharsetEncoding encoding = new EscPosCharsetEncoding("windows-1256", 22);
+        escpos.setCharsetEncoding(encoding);
 
         Style titleStyle = new Style()
                 .setFontSize(Style.FontSize._2, Style.FontSize._2)
@@ -30,48 +47,69 @@ public class ReceiptEscPosRenderer {
 
         for (ReceiptElement el : doc.getElements()) {
             if (el instanceof HeaderElement header) {
-                escpos.writeLF(titleStyle, header.getStoreName() != null ? header.getStoreName() : "");
-                escpos.writeLF(centerStyle, header.getStoreAddress() != null ? header.getStoreAddress() : "");
-                escpos.writeLF(centerStyle, header.getStorePhone() != null ? header.getStorePhone() : "");
+                if (header.getStoreName() != null) {
+                    escpos.writeLF(titleStyle, header.getStoreName());
+                }
                 escpos.feed(1);
                 
-                escpos.writeLF(leftStyle, "Date: " + header.getReceiptDate());
-                escpos.writeLF(leftStyle, "Receipt #: " + header.getReceiptNumber());
-                if (header.getCashierName() != null) {
-                    escpos.writeLF(leftStyle, "Cashier: " + header.getCashierName());
+                // Print right-aligned fields as shown in the reference
+                printRightAlignedField(escpos, rightStyle, "الفرع        : ", header.getBranch());
+                printRightAlignedField(escpos, rightStyle, "التليفون     : ", header.getPhone());
+                printRightAlignedField(escpos, rightStyle, "العنوان      : ", header.getAddress());
+                printRightAlignedField(escpos, rightStyle, "المستخدم     : ", header.getUser());
+                
+                escpos.feed(1);
+                if (header.getReceiptNumber() != null) {
+                    // Barcode in center
+                    BarCode barcode = new BarCode();
+                    barcode.setSystem(BarCode.BarCodeSystem.CODE128);
+                    barcode.setJustification(EscPosConst.Justification.Center);
+                    escpos.write(barcode, header.getReceiptNumber());
+                    escpos.feed(1);
                 }
-            } else if (el instanceof CustomerElement customer) {
-                if (customer.getCustomerName() != null) {
-                    escpos.writeLF(leftStyle, "Customer: " + customer.getCustomerName());
-                }
-                if (customer.getCustomerPhone() != null) {
-                    escpos.writeLF(leftStyle, "Phone: " + customer.getCustomerPhone());
-                }
+
+                printRightAlignedField(escpos, rightStyle, "البائع       : ", header.getSeller());
+                printRightAlignedField(escpos, rightStyle, "بون رقم      : ", header.getReceiptNumber());
+                printRightAlignedField(escpos, rightStyle, "التاريخ      : ", header.getDate());
+                
             } else if (el instanceof ItemsTableElement items) {
-                escpos.writeLF(boldStyle, "Item                 Qty  Price  Total");
+                // Print headers (Total | Price | Qty | Item)
+                String headerRow = padRight("الإجمالي", COL_TOTAL_WIDTH) +
+                                   padRight("السعر", COL_PRICE_WIDTH) +
+                                   padRight("الكمية", COL_QTY_WIDTH) +
+                                   padLeft("الصنف", COL_ITEM_WIDTH);
+                escpos.writeLF(boldStyle, headerRow);
+                
                 for (ItemsTableElement.ItemRow row : items.getItems()) {
-                    String name = row.getName();
-                    if (name != null && name.length() > 20) name = name.substring(0, 20);
-                    else if (name == null) name = "";
-                    String paddedName = String.format("%-20s", name);
-                    String qty = String.format("%-4s", row.getQuantity());
-                    String price = String.format("%-6s", row.getUnitPrice());
-                    String total = String.format("%-6s", row.getTotalPrice());
-                    escpos.writeLF(leftStyle, paddedName + " " + qty + " " + price + " " + total);
+                    String name = row.getName() != null ? row.getName() : "";
+                    if (name.length() > COL_ITEM_WIDTH) {
+                        name = name.substring(0, COL_ITEM_WIDTH); // Truncate safely
+                    }
+                    
+                    String itemRow = padRight(row.getTotalPrice(), COL_TOTAL_WIDTH) +
+                                     padRight(row.getUnitPrice(), COL_PRICE_WIDTH) +
+                                     padRight(row.getQuantity(), COL_QTY_WIDTH) +
+                                     padLeft(name, COL_ITEM_WIDTH);
+                    escpos.writeLF(leftStyle, itemRow);
                 }
             } else if (el instanceof TotalsElement totals) {
                 escpos.feed(1);
-                escpos.writeLF(rightStyle, "Subtotal: " + totals.getSubtotal());
-                if (totals.getTaxAmount() != null) {
-                    escpos.writeLF(rightStyle, "Tax: " + totals.getTaxAmount());
-                }
-                if (totals.getDiscountAmount() != null && !totals.getDiscountAmount().equals("0.00") && !totals.getDiscountAmount().equals("0")) {
-                    escpos.writeLF(rightStyle, "Discount: " + totals.getDiscountAmount());
-                }
-                escpos.writeLF(new Style().setJustification(EscPosConst.Justification.Right).setBold(true), 
-                        "Total: " + totals.getGrandTotal());
+                
+                // "إجمالي قطع : 2             140.00"
+                String totalItemsLine = padRight(totals.getTotalItemsAmount(), COL_TOTAL_WIDTH + COL_PRICE_WIDTH) +
+                                        padLeft("إجمالي قطع : " + totals.getTotalItemsCount(), LINE_WIDTH - (COL_TOTAL_WIDTH + COL_PRICE_WIDTH));
+                escpos.writeLF(boldStyle, totalItemsLine);
+                
+                escpos.writeLF(leftStyle, "------------------------------------------------");
+                
+                printRightAlignedField(escpos, rightStyle, "خصم الفاتورة : ", totals.getDiscountAmount());
+                printRightAlignedField(escpos, rightStyle, "صافي الفاتورة: ", totals.getNetTotal());
+                printRightAlignedField(escpos, rightStyle, "المدفوع     : ", totals.getPaidAmount());
+                printRightAlignedField(escpos, rightStyle, "الباقي      : ", totals.getRemainingAmount());
+                
             } else if (el instanceof SeparatorElement) {
-                escpos.writeLF(leftStyle, "--------------------------------"); // 32 chars for 58mm printer
+                // 48 dashes for 80mm printer
+                escpos.writeLF(leftStyle, "------------------------------------------------"); 
             } else if (el instanceof FooterElement footer) {
                 escpos.feed(1);
                 escpos.writeLF(centerStyle, footer.getText());
@@ -83,5 +121,21 @@ public class ReceiptEscPosRenderer {
         escpos.close();
         
         return baos.toByteArray();
+    }
+
+    private void printRightAlignedField(EscPos escpos, Style style, String label, String value) throws IOException {
+        String safeValue = value != null ? value : "";
+        String line = safeValue + "  " + label;
+        escpos.writeLF(style, line);
+    }
+    
+    private String padRight(String s, int n) {
+        if (s == null) s = "";
+        return String.format("%-" + n + "s", s);
+    }
+
+    private String padLeft(String s, int n) {
+        if (s == null) s = "";
+        return String.format("%" + n + "s", s);
     }
 }

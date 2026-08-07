@@ -12,11 +12,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class HeaderElement implements ReceiptElement {
     private String storeName;
-    private String storeAddress;
-    private String storePhone;
-    private String cashierName;
-    private String receiptDate;
+    private String branch;
+    private String phone;
+    private String address;
+    private String user;
+    private String seller;
     private String receiptNumber;
+    private String date;
 
     @Override
     public String getType() {

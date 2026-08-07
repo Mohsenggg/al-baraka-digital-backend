@@ -23,11 +23,7 @@ public class UsbPrinterService {
         }
         
         if (targetService == null) {
-            targetService = PrintServiceLookup.lookupDefaultPrintService();
-        }
-        
-        if (targetService == null) {
-            throw new RuntimeException("No printer found");
+            throw new RuntimeException("Printer '" + printerName + "' not found or is offline");
         }
 
         try (InputStream is = new ByteArrayInputStream(escPosData)) {
