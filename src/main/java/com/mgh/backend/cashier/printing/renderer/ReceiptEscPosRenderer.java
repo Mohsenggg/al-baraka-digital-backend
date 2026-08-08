@@ -4,7 +4,6 @@ import com.github.anastaciocintra.escpos.EscPos;
 import com.github.anastaciocintra.escpos.EscPosConst;
 import com.github.anastaciocintra.escpos.Style;
 import com.github.anastaciocintra.escpos.barcode.BarCode;
-import com.github.anastaciocintra.escpos.charactercode.EscPosCharsetEncoding;
 import com.mgh.backend.cashier.printing.model.ReceiptDocument;
 import com.mgh.backend.cashier.printing.model.ReceiptElement;
 import com.mgh.backend.cashier.printing.model.elements.*;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 
 @Component
 public class ReceiptEscPosRenderer {
@@ -29,11 +29,14 @@ public class ReceiptEscPosRenderer {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         EscPos escpos = new EscPos(baos);
 
-        // Configure encoding for Arabic (Windows-1256 is usually mapped to code page 22 on Xprinter)
+        // Configure encoding for Arabic
         // Note: Full RTL shaping depends on printer firmware. If the printer prints disconnected Arabic,
         // an external shaping library or image-based printing (Graphics) is required.
-        EscPosCharsetEncoding encoding = new EscPosCharsetEncoding("windows-1256", 22);
-        escpos.setCharsetEncoding(encoding);
+        // For Xprinters, Arabic is often CP864 (Code table 40) or Windows-1256 (Code table 22).
+        // Let's use the built-in WPC1256_Arabic if available, or just set by value.
+        escpos.setCharsetName("windows-1256");
+        // Sending ESC t 22 (code page 22 for windows-1256 on many Xprinters)
+        escpos.write(Arrays.toString(new byte[]{0x1B, 0x74, 22}));
 
         Style titleStyle = new Style()
                 .setFontSize(Style.FontSize._2, Style.FontSize._2)
