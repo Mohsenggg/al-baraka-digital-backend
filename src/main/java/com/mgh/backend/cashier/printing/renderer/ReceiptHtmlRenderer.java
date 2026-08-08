@@ -16,14 +16,14 @@ public class ReceiptHtmlRenderer {
             if (el instanceof HeaderElement header) {
                 sb.append("<div style='text-align: center; margin-bottom: 10px;'>");
                 sb.append("<h3>").append(header.getStoreName()).append("</h3>");
-                sb.append("<div>").append(header.getStoreAddress()).append("</div>");
-                sb.append("<div>").append(header.getStorePhone()).append("</div>");
+                sb.append("<div>الفرع: ").append(header.getBranch()).append("</div>");
+                sb.append("<div>التليفون: ").append(header.getPhone()).append("</div>");
+                sb.append("<div>العنوان: ").append(header.getAddress()).append("</div>");
+                sb.append("<div>المستخدم: ").append(header.getUser()).append("</div>");
                 sb.append("</div>");
-                sb.append("<div>Date: ").append(header.getReceiptDate()).append("</div>");
-                sb.append("<div>Receipt #: ").append(header.getReceiptNumber()).append("</div>");
-                if (header.getCashierName() != null) {
-                    sb.append("<div>Cashier: ").append(header.getCashierName()).append("</div>");
-                }
+                sb.append("<div>البائع: ").append(header.getSeller()).append("</div>");
+                sb.append("<div>بون رقم: ").append(header.getReceiptNumber()).append("</div>");
+                sb.append("<div>التاريخ: ").append(header.getDate()).append("</div>");
             } else if (el instanceof CustomerElement customer) {
                 sb.append("<div style='margin-bottom: 10px;'>");
                 if (customer.getCustomerName() != null) {
@@ -47,14 +47,11 @@ public class ReceiptHtmlRenderer {
                 sb.append("</table>");
             } else if (el instanceof TotalsElement totals) {
                 sb.append("<div style='text-align: right; margin-bottom: 10px;'>");
-                sb.append("<div>Subtotal: ").append(totals.getSubtotal()).append("</div>");
-                if (totals.getTaxAmount() != null) {
-                    sb.append("<div>Tax: ").append(totals.getTaxAmount()).append("</div>");
-                }
-                if (totals.getDiscountAmount() != null && !totals.getDiscountAmount().equals("0.00") && !totals.getDiscountAmount().equals("0")) {
-                    sb.append("<div>Discount: ").append(totals.getDiscountAmount()).append("</div>");
-                }
-                sb.append("<h4>Total: ").append(totals.getGrandTotal()).append("</h4>");
+                sb.append("<div>إجمالي قطع : ").append(totals.getTotalItemsCount()).append("             ").append(totals.getTotalItemsAmount()).append("</div>");
+                sb.append("<div>خصم الفاتورة: ").append(totals.getDiscountAmount()).append("</div>");
+                sb.append("<h4>صافي الفاتورة: ").append(totals.getNetTotal()).append("</h4>");
+                sb.append("<div>المدفوع: ").append(totals.getPaidAmount()).append("</div>");
+                sb.append("<div>الباقي: ").append(totals.getRemainingAmount()).append("</div>");
                 sb.append("</div>");
             } else if (el instanceof SeparatorElement) {
                 sb.append("<hr style='border: 1px dashed #000; margin: 10px 0;'/>");
