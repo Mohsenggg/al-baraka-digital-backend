@@ -67,7 +67,8 @@ public class ReceiptEscPosRenderer {
                     BarCode barcode = new BarCode();
                     barcode.setSystem(BarCode.BarCodeSystem.CODE128);
                     barcode.setJustification(EscPosConst.Justification.Center);
-                    escpos.write(barcode, header.getReceiptNumber());
+                    // CODE128 requires a charset prefix in escpos-coffee (e.g. {B)
+                    escpos.write(barcode, "{B" + header.getReceiptNumber());
                     escpos.feed(1);
                 }
 

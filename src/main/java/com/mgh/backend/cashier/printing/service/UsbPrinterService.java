@@ -1,5 +1,6 @@
 package com.mgh.backend.cashier.printing.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.print.*;
@@ -7,6 +8,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 @Service
+@Slf4j
 public class UsbPrinterService {
 
     public void printReceipt(byte[] escPosData, String printerName) throws PrintException {
@@ -30,6 +32,7 @@ public class UsbPrinterService {
             Doc doc = new SimpleDoc(is, flavor, null);
             DocPrintJob job = targetService.createPrintJob();
             job.print(doc, null);
+            log.info("****** Receipt printed successfully");
         } catch (Exception e) {
             throw new PrintException("Failed to print receipt", e);
         }

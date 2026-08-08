@@ -14,9 +14,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestController
 @RequestMapping("/api/receipt")
 @RequiredArgsConstructor
+@Slf4j
 public class ReceiptPrintController {
 
     private final ReceiptRepository receiptRepository;
@@ -44,6 +47,7 @@ public class ReceiptPrintController {
     @PostMapping("/{id}/print")
     @Transactional(readOnly = true)
     public ResponseEntity<Void> printReceipt(@PathVariable Long id) {
+        log.info("Received print request for receipt ID: {}", id);
         Receipt receipt = receiptRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Receipt not found"));
 
@@ -51,10 +55,13 @@ public class ReceiptPrintController {
         ReceiptDocument document = documentBuilder.build(receipt, config);
 
         try {
+            log.info("Attempting to print to printer: {}", printerName);
             byte[] escPosData = new com.mgh.backend.cashier.printing.renderer.ReceiptEscPosRenderer().render(document);
             usbPrinterService.printReceipt(escPosData, printerName);
+            log.info("Print job submitted successfully for receipt ID: {}", id);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
+            log.error("Failed to print receipt ID: {}. Error: {}", id, e.getMessage());
             throw new RuntimeException("Failed to print receipt", e);
         }
     }
