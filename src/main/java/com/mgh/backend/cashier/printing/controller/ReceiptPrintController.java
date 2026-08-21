@@ -28,7 +28,7 @@ public class ReceiptPrintController {
 
     private final UsbPrinterService usbPrinterService;
 
-    @Value("${app.printer.name:XP-D200N}")
+    @Value("${app.printer.name:PrinterPOS-80}")
     private String printerName;
 
     @GetMapping(value = "/{id}/preview", produces = MediaType.TEXT_HTML_VALUE)
