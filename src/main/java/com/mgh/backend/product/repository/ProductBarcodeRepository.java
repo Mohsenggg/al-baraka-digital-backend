@@ -32,4 +32,7 @@ public interface ProductBarcodeRepository extends JpaRepository<ProductBarcode, 
     Optional<ProductBarcode> findByIdAndProductIdAndDeletedAtIsNull(Long id, Long productId);
 
     boolean existsByBarcodeAndDeletedAtIsNull(String barcode);
+
+    @Query("SELECT DISTINCT pb.barcode FROM ProductBarcode pb WHERE pb.deletedAt IS NULL")
+    java.util.Set<String> findAllBarcodeBarcodes();
 }
