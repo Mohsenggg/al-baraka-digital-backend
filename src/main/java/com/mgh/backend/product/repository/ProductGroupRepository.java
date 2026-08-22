@@ -17,7 +17,7 @@ public interface ProductGroupRepository extends JpaRepository<ProductGroup, Long
     @Query("SELECT pg.code FROM ProductGroup pg")
     Set<String> findAllCodes();
 
-    /** Bulk-load all product groups with brand+category eagerly fetched (used by migration service). */
-    @Query("SELECT pg FROM ProductGroup pg JOIN FETCH pg.brand b JOIN FETCH b.category")
+    /** Bulk-load all product groups with brand and category eagerly fetched (used by migration service). */
+    @Query("SELECT pg FROM ProductGroup pg LEFT JOIN FETCH pg.brand b LEFT JOIN FETCH b.category LEFT JOIN FETCH pg.category")
     List<ProductGroup> findAllWithBrand();
 }

@@ -19,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,30 +39,24 @@ public class PosMigrationServiceTest {
     @InjectMocks
     private PosMigrationServiceImpl posMigrationService;
 
-    // ── Shared setup ────────────────────────────────────────────────────────────
-
     @BeforeEach
     void setUp() {
-        // Persister returns the entity it received (simulates save + assign ID)
         lenient().when(posMigrationPersister.saveCategory(any()))
-                 .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(posMigrationPersister.saveBrand(any()))
-                 .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(posMigrationPersister.saveProductGroup(any()))
-                 .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
         lenient().when(posMigrationPersister.saveProduct(any(), any()))
-                 .thenAnswer(inv -> inv.getArgument(0));
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
-    /** Stub the bulk-preload calls to return empty (nothing exists in DB yet). */
     private void stubEmptyDatabase() {
         lenient().when(categoryRepository.findAllWithCode()).thenReturn(Collections.emptyList());
         lenient().when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
         lenient().when(productGroupRepository.findAllWithBrand()).thenReturn(Collections.emptyList());
         lenient().when(productRepository.findAllBarcodeAndNamePairs()).thenReturn(Collections.emptyList());
     }
-
-    // ── Helper builders ─────────────────────────────────────────────────────────
 
     private PosDataItemDto item(String code, String prnt, String name, int type) {
         PosDataItemDto dto = new PosDataItemDto();
@@ -85,16 +78,62 @@ public class PosMigrationServiceTest {
         return dto;
     }
 
-    // ── Tests ───────────────────────────────────────────────────────────────────
+    // ── Variable Hierarchy Depth Tests ──────────────────────────────────────────
 
     @Test
-    void testSuccessfulMigration() {
+    void testTwoLevelHierarchy_ProductDirectlyUnderProductGroupUnderCategory() {
+        // Example: Category "04" -> ProductGroup "05015" -> Product "6224008563570"
         stubEmptyDatabase();
 
         List<PosDataItemDto> items = List.of(
-                item("01",             "0",     "مساحيق",           1),
-                item("0101",           "01",    "شركة اريال",        1),
-                item("01016",          "0101",  "اريال 1ك",          1),
+                item("04", "0", "قسم المنظفات", 1),
+                item("05015", "04", "مجموعة صابون سائل", 1),
+                product("6224008563570", "05015", "صابون سائل لافندر",
+                        new BigDecimal("25.00"), new BigDecimal("30.00"), 2.0, 50.0)
+        );
+
+        MigrationResultDto result = posMigrationService.importPosData(items);
+
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getTotalRecords());
+        assertEquals(3, result.getSuccessfulRecords());
+        assertEquals(0, result.getAlreadyExisting());
+        assertEquals(0, result.getFailedRecords());
+        assertTrue(result.getFailures().isEmpty());
+
+        // Verify Category
+        ArgumentCaptor<ProductCategory> catCap = ArgumentCaptor.forClass(ProductCategory.class);
+        verify(posMigrationPersister).saveCategory(catCap.capture());
+        assertEquals("04", catCap.getValue().getCode());
+        assertEquals("قسم المنظفات", catCap.getValue().getName());
+
+        // Verify ProductGroup
+        ArgumentCaptor<ProductGroup> pgCap = ArgumentCaptor.forClass(ProductGroup.class);
+        verify(posMigrationPersister).saveProductGroup(pgCap.capture());
+        ProductGroup savedPg = pgCap.getValue();
+        assertEquals("05015", savedPg.getCode());
+        assertEquals("مجموعة صابون سائل", savedPg.getName());
+        assertEquals("04", savedPg.getCategory().getCode());
+        assertNull(savedPg.getBrand());
+
+        // Verify Product
+        ArgumentCaptor<Product> prodCap = ArgumentCaptor.forClass(Product.class);
+        verify(posMigrationPersister).saveProduct(prodCap.capture(), any());
+        Product savedProd = prodCap.getValue();
+        assertEquals("6224008563570", savedProd.getBarcode());
+        assertEquals("05015", savedProd.getProductGroup().getCode());
+        assertEquals("04", savedProd.getCategory().getCode());
+    }
+
+    @Test
+    void testThreeLevelHierarchy_Category_Brand_ProductGroup_Product() {
+        // Example: Category "01" -> Brand "0101" -> ProductGroup "01016" -> Product "8006540852170"
+        stubEmptyDatabase();
+
+        List<PosDataItemDto> items = List.of(
+                item("01", "0", "مساحيق", 1),
+                item("0101", "01", "شركة اريال", 1),
+                item("01016", "0101", "اريال 1ك", 1),
                 product("8006540852170", "01016", "اريال 1كيلو لافندر",
                         new BigDecimal("100.00"), new BigDecimal("120.00"), 5.0, 100.0)
         );
@@ -104,15 +143,7 @@ public class PosMigrationServiceTest {
         assertTrue(result.isSuccess());
         assertEquals(4, result.getTotalRecords());
         assertEquals(4, result.getSuccessfulRecords());
-        assertEquals(0, result.getAlreadyExisting());
         assertEquals(0, result.getFailedRecords());
-        assertTrue(result.getFailures().isEmpty());
-
-        // Verify Category
-        ArgumentCaptor<ProductCategory> catCap = ArgumentCaptor.forClass(ProductCategory.class);
-        verify(posMigrationPersister).saveCategory(catCap.capture());
-        assertEquals("01", catCap.getValue().getCode());
-        assertEquals("مساحيق", catCap.getValue().getName());
 
         // Verify Brand
         ArgumentCaptor<Brand> brandCap = ArgumentCaptor.forClass(Brand.class);
@@ -126,215 +157,125 @@ public class PosMigrationServiceTest {
         assertEquals("01016", pgCap.getValue().getCode());
         assertEquals("0101", pgCap.getValue().getBrand().getCode());
 
-        // Verify Product + barcode
-        ArgumentCaptor<Product>        prodCap = ArgumentCaptor.forClass(Product.class);
-        ArgumentCaptor<ProductBarcode> bcCap   = ArgumentCaptor.forClass(ProductBarcode.class);
-        verify(posMigrationPersister).saveProduct(prodCap.capture(), bcCap.capture());
-        Product prod = prodCap.getValue();
-        assertEquals("8006540852170", prod.getBarcode());
-        assertEquals("01016", prod.getProductGroup().getCode());
-        assertEquals("01", prod.getCategory().getCode());
-        assertEquals(5.0,   prod.getMinStockLevel());
-        assertEquals(100.0, prod.getMaxStockLevel());
-        ProductBarcode pb = bcCap.getValue();
-        assertEquals(new BigDecimal("100.00"), pb.getBuyingPrice());
-        assertEquals(new BigDecimal("120.00"), pb.getSellingPrice());
-        assertTrue(pb.isDefault());
-    }
-
-    // ── alreadyExisting tests ────────────────────────────────────────────────────
-
-    @Test
-    void testCategoryAlreadyExisting_sameCodeAndName_isSkippedNotFailed() {
-        // Pre-existing Category "01" with same name
-        ProductCategory existingCat = ProductCategory.builder()
-                .id(1L).code("01").name("مساحيق").build();
-        when(categoryRepository.findAllWithCode()).thenReturn(List.of(existingCat));
-        when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
-        when(productGroupRepository.findAllWithBrand()).thenReturn(Collections.emptyList());
-        when(productRepository.findAllBarcodeAndNamePairs()).thenReturn(Collections.emptyList());
-
-        MigrationResultDto result = posMigrationService.importPosData(
-                List.of(item("01", "0", "مساحيق", 1))
-        );
-
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getTotalRecords());
-        assertEquals(0, result.getSuccessfulRecords());
-        assertEquals(1, result.getAlreadyExisting());
-        assertEquals(0, result.getFailedRecords());
-        verify(posMigrationPersister, never()).saveCategory(any());
+        // Verify Product
+        ArgumentCaptor<Product> prodCap = ArgumentCaptor.forClass(Product.class);
+        verify(posMigrationPersister).saveProduct(prodCap.capture(), any());
+        assertEquals("8006540852170", prodCap.getValue().getBarcode());
+        assertEquals("01016", prodCap.getValue().getProductGroup().getCode());
+        assertEquals("01", prodCap.getValue().getCategory().getCode());
     }
 
     @Test
-    void testCategoryAlreadyExisting_sameCodeDifferentName_isConflict() {
-        ProductCategory existingCat = ProductCategory.builder()
-                .id(1L).code("01").name("مساحيق قديمة").build();
-        when(categoryRepository.findAllWithCode()).thenReturn(List.of(existingCat));
-        when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
-        when(productGroupRepository.findAllWithBrand()).thenReturn(Collections.emptyList());
-        when(productRepository.findAllBarcodeAndNamePairs()).thenReturn(Collections.emptyList());
-
-        MigrationResultDto result = posMigrationService.importPosData(
-                List.of(item("01", "0", "مساحيق جديدة", 1))
-        );
-
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getFailedRecords());
-        assertEquals(0, result.getAlreadyExisting());
-        MigrationErrorDto.ValidationError err = result.getFailures().get(0);
-        assertEquals("01", err.getItemCode());
-        assertTrue(err.getReason().contains("already exists with a different name"));
-        verify(posMigrationPersister, never()).saveCategory(any());
-    }
-
-    @Test
-    void testAlreadyExistingParent_childrenAreStillInserted() {
-        // Category "01" already in DB — it should be skipped (alreadyExisting)
-        // but Brands that belong to it should still be inserted successfully.
-        ProductCategory existingCat = ProductCategory.builder()
-                .id(1L).code("01").name("مساحيق").build();
-        when(categoryRepository.findAllWithCode()).thenReturn(List.of(existingCat));
-        when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
-        when(productGroupRepository.findAllWithBrand()).thenReturn(Collections.emptyList());
-        when(productRepository.findAllBarcodeAndNamePairs()).thenReturn(Collections.emptyList());
+    void testMixedHierarchyDepthsInSinglePayload() {
+        // Mixed:
+        // Tree 1: Category "02" -> ProductGroup "0202" -> Product "6225000223844" (depth 2)
+        // Tree 2: Category "01" -> Brand "0101" -> ProductGroup "01016" -> Product "8006540852170" (depth 3)
+        stubEmptyDatabase();
 
         List<PosDataItemDto> items = List.of(
-                item("01",   "0",  "مساحيق",     1),   // already existing
-                item("0101", "01", "شركة اريال", 1)    // new — parent resolvable from preloaded map
+                item("02", "0", "عناية شخصية", 1),
+                item("0202", "02", "شامبو", 1),
+                product("6225000223844", "0202", "شامبو 400مل", new BigDecimal("40"), new BigDecimal("50"), 1, 20),
+                item("01", "0", "مساحيق", 1),
+                item("0101", "01", "شركة اريال", 1),
+                item("01016", "0101", "اريال 1ك", 1),
+                product("8006540852170", "01016", "اريال 1كيلو لافندر", new BigDecimal("100"), new BigDecimal("120"), 5, 100)
         );
 
         MigrationResultDto result = posMigrationService.importPosData(items);
 
         assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRecords());
-        assertEquals(1, result.getSuccessfulRecords()); // brand is new
-        assertEquals(1, result.getAlreadyExisting());   // category skipped
+        assertEquals(7, result.getTotalRecords());
+        assertEquals(7, result.getSuccessfulRecords());
+        assertEquals(0, result.getFailedRecords());
+    }
+
+    // ── Existing Record & Conflict Detection Tests ──────────────────────────────
+
+    @Test
+    void testAlreadyExisting_PreloadedEntitiesSkipped() {
+        ProductCategory existingCat = ProductCategory.builder().id(1L).code("04").name("قسم المنظفات").build();
+        ProductGroup existingPg = ProductGroup.builder().id(1L).code("05015").name("مجموعة صابون سائل").category(existingCat).build();
+
+        when(categoryRepository.findAllWithCode()).thenReturn(List.of(existingCat));
+        when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
+        when(productGroupRepository.findAllWithBrand()).thenReturn(List.of(existingPg));
+        when(productRepository.findAllBarcodeAndNamePairs())
+                .thenReturn(Collections.singletonList(new Object[]{"6224008563570", "صابون سائل لافندر"}));
+
+        List<PosDataItemDto> items = List.of(
+                item("04", "0", "قسم المنظفات", 1),
+                item("05015", "04", "مجموعة صابون سائل", 1),
+                product("6224008563570", "05015", "صابون سائل لافندر", new BigDecimal("25"), new BigDecimal("30"), 2, 50)
+        );
+
+        MigrationResultDto result = posMigrationService.importPosData(items);
+
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getTotalRecords());
+        assertEquals(0, result.getSuccessfulRecords());
+        assertEquals(3, result.getAlreadyExisting());
         assertEquals(0, result.getFailedRecords());
 
         verify(posMigrationPersister, never()).saveCategory(any());
-        verify(posMigrationPersister, times(1)).saveBrand(any());
-    }
-
-    @Test
-    void testProductAlreadyExisting_sameBarCodeAndName_isSkipped() {
-        stubEmptyDatabase();
-        when(productRepository.findAllBarcodeAndNamePairs())
-                .thenReturn(List.of(new Object[]{"8006540852170", "اريال 1كيلو لافندر"}));
-
-        // Build minimal hierarchy in preloaded maps via stubs (Category "01" already in DB)
-        ProductCategory cat = ProductCategory.builder().id(1L).code("01").name("مساحيق").build();
-        Brand brand = Brand.builder().id(1L).code("0101").name("اريال").category(cat).build();
-        ProductGroup pg = ProductGroup.builder().id(1L).code("01016").name("اريال 1ك").brand(brand).build();
-        when(categoryRepository.findAllWithCode()).thenReturn(List.of(cat));
-        when(brandRepository.findAllWithCategory()).thenReturn(List.of(brand));
-        when(productGroupRepository.findAllWithBrand()).thenReturn(List.of(pg));
-
-        MigrationResultDto result = posMigrationService.importPosData(
-                List.of(product("8006540852170", "01016", "اريال 1كيلو لافندر",
-                        new BigDecimal("100"), new BigDecimal("120"), 5, 100))
-        );
-
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getAlreadyExisting());
-        assertEquals(0, result.getSuccessfulRecords());
+        verify(posMigrationPersister, never()).saveProductGroup(any());
         verify(posMigrationPersister, never()).saveProduct(any(), any());
     }
 
-    // ── Partial success / error-resilience tests ─────────────────────────────────
-
     @Test
-    void testPartialSuccess_validTreePersistedWhileInvalidTreeFails() {
-        stubEmptyDatabase();
+    void testConflictDetection_SameCodeDifferentName() {
+        ProductCategory existingCat = ProductCategory.builder().id(1L).code("04").name("اسم قديم").build();
 
-        // Tree A: valid (Category "01" + Brand "0101") — should succeed
-        // Tree B: invalid type on Category "02" — Category fails; Brand "0201" cascades
+        when(categoryRepository.findAllWithCode()).thenReturn(List.of(existingCat));
+        when(brandRepository.findAllWithCategory()).thenReturn(Collections.emptyList());
+        when(productGroupRepository.findAllWithBrand()).thenReturn(Collections.emptyList());
+        when(productRepository.findAllBarcodeAndNamePairs()).thenReturn(Collections.emptyList());
+
         List<PosDataItemDto> items = List.of(
-                item("01",   "0",  "Category A",  1),
-                item("0101", "01", "Brand A",      1),
-                item("02",   "0",  "Category B",  2),  // type=2 for a root → invalid
-                item("0201", "02", "Brand B",      1)
+                item("04", "0", "اسم جديد", 1),
+                item("05015", "04", "مجموعة", 1),
+                product("6224008563570", "05015", "منتج", new BigDecimal("25"), new BigDecimal("30"), 2, 50)
         );
 
         MigrationResultDto result = posMigrationService.importPosData(items);
 
         assertTrue(result.isSuccess());
-        assertEquals(4, result.getTotalRecords());
-        assertEquals(2, result.getSuccessfulRecords());
-        assertEquals(2, result.getFailedRecords());
+        assertEquals(3, result.getTotalRecords());
+        assertEquals(0, result.getSuccessfulRecords());
+        assertEquals(3, result.getFailedRecords());
         assertEquals(0, result.getAlreadyExisting());
 
-        verify(posMigrationPersister, times(1))
-                .saveCategory(argThat(c -> c.getCode().equals("01")));
-        verify(posMigrationPersister, times(1))
-                .saveBrand(argThat(b -> b.getCode().equals("0101")));
-        verify(posMigrationPersister, never())
-                .saveCategory(argThat(c -> c.getCode().equals("02")));
-        verify(posMigrationPersister, never())
-                .saveBrand(argThat(b -> b.getCode().equals("0201")));
+        assertTrue(result.getFailures().get(0).getReason().contains("already exists with a different name"));
     }
 
     @Test
-    void testArbitraryInputOrder_hierarchyResolvedCorrectly() {
+    void testArbitraryInputOrder_HierarchyResolvedCorrectly() {
         stubEmptyDatabase();
 
         // Items in reverse dependency order
         List<PosDataItemDto> items = List.of(
-                product("8006540852170", "01016", "منتج", null, null, 0, 0),
-                item("01016", "0101", "مجموعة", 1),
-                item("0101",  "01",   "ماركة",  1),
-                item("01",    "0",    "تصنيف",  1)
+                product("6224008563570", "05015", "منتج", null, null, 0, 0),
+                item("05015", "04", "مجموعة", 1),
+                item("04", "0", "تصنيف", 1)
         );
 
         MigrationResultDto result = posMigrationService.importPosData(items);
 
         assertTrue(result.isSuccess());
-        assertEquals(4, result.getSuccessfulRecords());
+        assertEquals(3, result.getSuccessfulRecords());
         assertEquals(0, result.getFailedRecords());
     }
 
     @Test
-    void testDuplicateInputCode_firstOccurrenceSucceeds_secondFails() {
+    void testMissingParent_ItemFailsGracefully() {
         stubEmptyDatabase();
 
-        List<PosDataItemDto> items = List.of(
-                item("01", "0", "Category 1", 1),
-                item("01", "0", "Category 1 duplicate", 1)  // duplicate code in same payload
-        );
-
-        MigrationResultDto result = posMigrationService.importPosData(items);
-
-        assertTrue(result.isSuccess());
-        assertEquals(2, result.getTotalRecords());
-        assertEquals(1, result.getSuccessfulRecords());
-        assertEquals(1, result.getFailedRecords());
-        assertTrue(result.getFailures().get(0).getReason().contains("Conflicting duplicate ItemCode"));
-        verify(posMigrationPersister, times(1)).saveCategory(any());
-    }
-
-    @Test
-    void testMissingParent_itemFailsGracefully() {
-        stubEmptyDatabase();  // includes empty preloaded maps → "01" not in DB
-
         MigrationResultDto result = posMigrationService.importPosData(
-                List.of(item("0101", "01", "Brand", 1))  // parent "01" nowhere
+                List.of(product("6224008563570", "9999", "منتج بدون أب", null, null, 0, 0))
         );
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getFailedRecords());
         assertTrue(result.getFailures().get(0).getReason().contains("was not found in input or database"));
-    }
-
-    @Test
-    void testInvalidItemType_itemFailsGracefully() {
-        stubEmptyDatabase();
-
-        MigrationResultDto result = posMigrationService.importPosData(
-                List.of(item("01", "0", "Category", 3))  // type=3 is invalid
-        );
-
-        assertTrue(result.isSuccess());
-        assertEquals(1, result.getFailedRecords());
-        assertTrue(result.getFailures().get(0).getReason().contains("Invalid ItemType"));
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,9 +62,6 @@ public class PosMigrationServiceImpl implements PosMigrationService {
         // Load all existing entities once. These maps serve dual purpose:
         //   (a) existence check: is this code already in the DB?
         //   (b) parent resolution: what entity do I link children to?
-        // New records inserted during this migration are added to the maps as they are
-        // saved, so children can resolve parents regardless of insertion order.
-
         Map<String, ProductCategory> categoriesByCode = new HashMap<>();
         categoryRepository.findAllWithCode()
                 .forEach(c -> categoriesByCode.put(c.getCode(), c));
@@ -76,7 +74,7 @@ public class PosMigrationServiceImpl implements PosMigrationService {
         productGroupRepository.findAllWithBrand()
                 .forEach(pg -> productGroupsByCode.put(pg.getCode(), pg));
 
-        // Products have no children, so we only need code→name for existence checks.
+        // Products have no children, so we only need barcode→name for existence checks.
         Map<String, String> existingProductCodeToName = new HashMap<>();
         for (Object[] row : productRepository.findAllBarcodeAndNamePairs()) {
             if (row[0] != null) {
@@ -122,8 +120,25 @@ public class PosMigrationServiceImpl implements PosMigrationService {
             }
         }
 
-        // ── STEP 4: HIERARCHY TRACE (computes depth of each item) ────────────────────
-        // Uses preloaded maps for parent lookups — no per-record DB queries.
+        // Identify parent-child usage across the batch
+        Set<String> parentOfGroupingNodes = new HashSet<>();
+        Set<String> parentOfProducts = new HashSet<>();
+
+        for (Map.Entry<String, PosDataItemDto> entry : itemsByCode.entrySet()) {
+            if (failedCodes.contains(entry.getKey())) continue;
+            PosDataItemDto item = entry.getValue();
+            String parentCode = item.getItemPrnt().trim();
+            if (!parentCode.equals("0")) {
+                if (item.getItemType() == 1) {
+                    parentOfGroupingNodes.add(parentCode);
+                } else if (item.getItemType() == 2) {
+                    parentOfProducts.add(parentCode);
+                }
+            }
+        }
+
+        // ── STEP 4: HIERARCHY TRACE & DEPTH CALCULATION ──────────────────────────────
+        // Computes hops-from-root for dependency ordering without fixed hop assumptions.
         Map<String, Integer> itemHops = new HashMap<>();
 
         for (Map.Entry<String, PosDataItemDto> entry : itemsByCode.entrySet()) {
@@ -136,7 +151,16 @@ public class PosMigrationServiceImpl implements PosMigrationService {
             boolean hasCircle = false;
             boolean parentNotFound = false;
             boolean parentFailed = false;
+            boolean invalidParentType = false;
+            String invalidParentCode = null;
+            int invalidParentTypeVal = 0;
             int hops = 0;
+
+            if (item.getItemType() == 2 && item.getItemPrnt().trim().equals("0")) {
+                failures.add(new ValidationError(code, "Product (ItemType=2) cannot be a root record (ItemPrnt=0)"));
+                failedCodes.add(code);
+                continue;
+            }
 
             while (current != null && !current.getItemPrnt().trim().equals("0")) {
                 String parentCode = current.getItemPrnt().trim();
@@ -152,7 +176,7 @@ public class PosMigrationServiceImpl implements PosMigrationService {
 
                 PosDataItemDto nextInInput = itemsByCode.get(parentCode);
                 if (nextInInput == null) {
-                    // Parent not in this payload — resolve level from preloaded maps
+                    // Parent not in this payload — resolve depth from preloaded DB maps
                     int parentLevel = -1;
                     if (categoriesByCode.containsKey(parentCode)) {
                         parentLevel = 0;
@@ -169,11 +193,23 @@ public class PosMigrationServiceImpl implements PosMigrationService {
                     }
                     current = null;
                 } else {
+                    if (nextInInput.getItemType() != null && nextInInput.getItemType() != 1) {
+                        invalidParentType = true;
+                        invalidParentCode = parentCode;
+                        invalidParentTypeVal = nextInInput.getItemType();
+                        break;
+                    }
                     current = nextInInput;
                     hops++;
                 }
             }
 
+            if (invalidParentType) {
+                failures.add(new ValidationError(code,
+                        "Parent '" + invalidParentCode + "' has invalid ItemType=" + invalidParentTypeVal + ". Parents must be grouping nodes (ItemType=1)"));
+                failedCodes.add(code);
+                continue;
+            }
             if (parentFailed) {
                 failures.add(new ValidationError(code, "Parent with code '" + item.getItemPrnt() + "' failed validation/import"));
                 failedCodes.add(code);
@@ -191,153 +227,163 @@ public class PosMigrationServiceImpl implements PosMigrationService {
             }
 
             itemHops.put(code, hops);
-
-            // Level ↔ ItemType consistency
-            if (hops == 0 && item.getItemType() != 1) {
-                failures.add(new ValidationError(code, "Category (hops=0) must have ItemType = 1"));
-                failedCodes.add(code);
-            } else if (hops == 1 && item.getItemType() != 1) {
-                failures.add(new ValidationError(code, "Brand (hops=1) must have ItemType = 1"));
-                failedCodes.add(code);
-            } else if (hops == 2 && item.getItemType() != 1) {
-                failures.add(new ValidationError(code, "ProductGroup (hops=2) must have ItemType = 1"));
-                failedCodes.add(code);
-            } else if (hops == 3 && item.getItemType() != 2) {
-                failures.add(new ValidationError(code, "Product (hops=3) must have ItemType = 2"));
-                failedCodes.add(code);
-            } else if (hops > 3) {
-                failures.add(new ValidationError(code, "Invalid hierarchy depth. Got hops: " + hops));
-                failedCodes.add(code);
-            }
         }
 
-        // ── STEP 5: PERSIST LEVEL 0 — Categories ─────────────────────────────────────
+        // ── STEP 5: PROCESS GROUPING NODES (ItemType = 1) IN TOPOLOGICAL ORDER ──────
+        // Sort ItemType = 1 items by hops-from-root ascending so parents are always processed before children.
+        List<PosDataItemDto> groupingItems = new ArrayList<>();
         for (PosDataItemDto item : items) {
             String code = item.getItemCode().trim();
-            if (failedCodes.contains(code) || itemHops.get(code) == null || itemHops.get(code) != 0) continue;
-
-            String incomingName = item.getItemName().trim();
-
-            if (categoriesByCode.containsKey(code)) {
-                // Code already exists — check if name also matches
-                if (categoriesByCode.get(code).getName().equals(incomingName)) {
-                    alreadyExisting++;
-                    log.info("Category already exists: code={}, name={}", code, incomingName);
-                } else {
-                    String conflict = "Category code '" + code + "' already exists with a different name: '"
-                            + categoriesByCode.get(code).getName() + "'";
-                    failures.add(new ValidationError(code, conflict));
-                    failedCodes.add(code);
-                    log.warn("Category import failed: code={}, reason={}", code, conflict);
-                }
-                continue;
-            }
-
-            try {
-                ProductCategory saved = posMigrationPersister.saveCategory(
-                        ProductCategory.builder().name(incomingName).code(code).build());
-                categoriesByCode.put(code, saved);
-                log.info("Category created: code={}, name={}", code, incomingName);
-            } catch (Exception e) {
-                String reason = "Failed to persist Category: " + e.getMessage();
-                failures.add(new ValidationError(code, reason));
-                failedCodes.add(code);
-                log.warn("Category import failed: code={}, reason={}", code, reason);
+            if (!failedCodes.contains(code) && item.getItemType() == 1 && itemHops.containsKey(code)) {
+                groupingItems.add(item);
             }
         }
+        groupingItems.sort(Comparator.comparingInt(i -> itemHops.get(i.getItemCode().trim())));
 
-        // ── STEP 6: PERSIST LEVEL 1 — Brands ─────────────────────────────────────────
-        for (PosDataItemDto item : items) {
+        for (PosDataItemDto item : groupingItems) {
             String code = item.getItemCode().trim();
-            if (failedCodes.contains(code) || itemHops.get(code) == null || itemHops.get(code) != 1) continue;
+            if (failedCodes.contains(code)) continue;
 
+            int depth = itemHops.get(code);
             String incomingName = item.getItemName().trim();
-
-            if (brandsByCode.containsKey(code)) {
-                if (brandsByCode.get(code).getName().equals(incomingName)) {
-                    alreadyExisting++;
-                    log.info("Brand already exists: code={}, name={}", code, incomingName);
-                } else {
-                    String conflict = "Brand code '" + code + "' already exists with a different name: '"
-                            + brandsByCode.get(code).getName() + "'";
-                    failures.add(new ValidationError(code, conflict));
-                    failedCodes.add(code);
-                    log.warn("Brand import failed: code={}, reason={}", code, conflict);
-                }
-                continue;
-            }
-
             String parentCode = item.getItemPrnt().trim();
-            ProductCategory parentCat = categoriesByCode.get(parentCode);
-            if (parentCat == null) {
-                String reason = "Parent Category with code '" + parentCode + "' was not found or failed validation";
-                failures.add(new ValidationError(code, reason));
-                failedCodes.add(code);
-                log.warn("Brand import failed: code={}, reason={}", code, reason);
-                continue;
-            }
 
-            try {
-                Brand saved = posMigrationPersister.saveBrand(
-                        Brand.builder().name(incomingName).code(code).category(parentCat).build());
-                brandsByCode.put(code, saved);
-                log.info("Brand created: code={}, name={}", code, incomingName);
-            } catch (Exception e) {
-                String reason = "Failed to persist Brand: " + e.getMessage();
-                failures.add(new ValidationError(code, reason));
-                failedCodes.add(code);
-                log.warn("Brand import failed: code={}, reason={}", code, reason);
-            }
-        }
-
-        // ── STEP 7: PERSIST LEVEL 2 — ProductGroups ──────────────────────────────────
-        for (PosDataItemDto item : items) {
-            String code = item.getItemCode().trim();
-            if (failedCodes.contains(code) || itemHops.get(code) == null || itemHops.get(code) != 2) continue;
-
-            String incomingName = item.getItemName().trim();
-
-            if (productGroupsByCode.containsKey(code)) {
-                if (productGroupsByCode.get(code).getName().equals(incomingName)) {
-                    alreadyExisting++;
-                    log.info("ProductGroup already exists: code={}, name={}", code, incomingName);
-                } else {
-                    String conflict = "ProductGroup code '" + code + "' already exists with a different name: '"
-                            + productGroupsByCode.get(code).getName() + "'";
-                    failures.add(new ValidationError(code, conflict));
-                    failedCodes.add(code);
-                    log.warn("ProductGroup import failed: code={}, reason={}", code, conflict);
+            if (depth == 0) {
+                // ── Root Category (ItemPrnt = "0") ──
+                if (categoriesByCode.containsKey(code)) {
+                    if (categoriesByCode.get(code).getName().equals(incomingName)) {
+                        alreadyExisting++;
+                        log.info("Category already exists: code={}, name={}", code, incomingName);
+                    } else {
+                        String conflict = "Category code '" + code + "' already exists with a different name: '"
+                                + categoriesByCode.get(code).getName() + "'";
+                        failures.add(new ValidationError(code, conflict));
+                        failedCodes.add(code);
+                        log.warn("Category import failed: code={}, reason={}", code, conflict);
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            String parentCode = item.getItemPrnt().trim();
-            Brand parentBrand = brandsByCode.get(parentCode);
-            if (parentBrand == null) {
-                String reason = "Parent Brand with code '" + parentCode + "' was not found or failed validation";
-                failures.add(new ValidationError(code, reason));
-                failedCodes.add(code);
-                log.warn("ProductGroup import failed: code={}, reason={}", code, reason);
-                continue;
-            }
+                try {
+                    ProductCategory saved = posMigrationPersister.saveCategory(
+                            ProductCategory.builder().name(incomingName).code(code).build());
+                    categoriesByCode.put(code, saved);
+                    log.info("Category created: code={}, name={}", code, incomingName);
+                } catch (Exception e) {
+                    String reason = "Failed to persist Category: " + e.getMessage();
+                    failures.add(new ValidationError(code, reason));
+                    failedCodes.add(code);
+                    log.warn("Category import failed: code={}, reason={}", code, reason);
+                }
+            } else {
+                // ── Non-root Grouping Node (depth >= 1) ──
+                // Determine whether this node acts as Brand, ProductGroup, or both
+                boolean hasChildGroups = parentOfGroupingNodes.contains(code);
+                boolean hasChildProducts = parentOfProducts.contains(code);
+                // If neither child type is detected in current batch, treat as ProductGroup by default
+                boolean actAsBrand = hasChildGroups;
+                boolean actAsProductGroup = hasChildProducts || !hasChildGroups;
 
-            try {
-                ProductGroup saved = posMigrationPersister.saveProductGroup(
-                        ProductGroup.builder().name(incomingName).code(code).brand(parentBrand).build());
-                productGroupsByCode.put(code, saved);
-                log.info("ProductGroup created: code={}, name={}", code, incomingName);
-            } catch (Exception e) {
-                String reason = "Failed to persist ProductGroup: " + e.getMessage();
-                failures.add(new ValidationError(code, reason));
-                failedCodes.add(code);
-                log.warn("ProductGroup import failed: code={}, reason={}", code, reason);
+                // Resolve ancestor Category & Brand
+                ProductCategory ancestorCategory = null;
+                Brand parentBrand = null;
+
+                if (brandsByCode.containsKey(parentCode)) {
+                    parentBrand = brandsByCode.get(parentCode);
+                    ancestorCategory = parentBrand.getCategory();
+                } else if (categoriesByCode.containsKey(parentCode)) {
+                    ancestorCategory = categoriesByCode.get(parentCode);
+                } else if (productGroupsByCode.containsKey(parentCode)) {
+                    ProductGroup parentPg = productGroupsByCode.get(parentCode);
+                    ancestorCategory = parentPg.getCategory() != null ? parentPg.getCategory() :
+                            (parentPg.getBrand() != null ? parentPg.getBrand().getCategory() : null);
+                }
+
+                if (ancestorCategory == null) {
+                    String reason = "Parent grouping node with code '" + parentCode + "' was not found or failed validation";
+                    failures.add(new ValidationError(code, reason));
+                    failedCodes.add(code);
+                    log.warn("Grouping node import failed: code={}, reason={}", code, reason);
+                    continue;
+                }
+
+                boolean itemCounted = false;
+
+                // 1. Create/Check Brand (if intermediate node)
+                if (actAsBrand) {
+                    if (brandsByCode.containsKey(code)) {
+                        if (brandsByCode.get(code).getName().equals(incomingName)) {
+                            if (!actAsProductGroup && !itemCounted) {
+                                alreadyExisting++;
+                                itemCounted = true;
+                            }
+                            log.info("Brand already exists: code={}, name={}", code, incomingName);
+                        } else {
+                            String conflict = "Brand code '" + code + "' already exists with a different name: '"
+                                    + brandsByCode.get(code).getName() + "'";
+                            failures.add(new ValidationError(code, conflict));
+                            failedCodes.add(code);
+                            log.warn("Brand import failed: code={}, reason={}", code, conflict);
+                            continue;
+                        }
+                    } else {
+                        try {
+                            Brand savedBrand = posMigrationPersister.saveBrand(
+                                    Brand.builder().name(incomingName).code(code).category(ancestorCategory).build());
+                            brandsByCode.put(code, savedBrand);
+                            log.info("Brand created: code={}, name={}", code, incomingName);
+                        } catch (Exception e) {
+                            String reason = "Failed to persist Brand: " + e.getMessage();
+                            failures.add(new ValidationError(code, reason));
+                            failedCodes.add(code);
+                            log.warn("Brand import failed: code={}, reason={}", code, reason);
+                            continue;
+                        }
+                    }
+                }
+
+                // 2. Create/Check ProductGroup (if direct parent of products or leaf node)
+                if (actAsProductGroup) {
+                    if (productGroupsByCode.containsKey(code)) {
+                        if (productGroupsByCode.get(code).getName().equals(incomingName)) {
+                            if (!itemCounted) {
+                                alreadyExisting++;
+                                itemCounted = true;
+                            }
+                            log.info("ProductGroup already exists: code={}, name={}", code, incomingName);
+                        } else {
+                            String conflict = "ProductGroup code '" + code + "' already exists with a different name: '"
+                                    + productGroupsByCode.get(code).getName() + "'";
+                            failures.add(new ValidationError(code, conflict));
+                            failedCodes.add(code);
+                            log.warn("ProductGroup import failed: code={}, reason={}", code, conflict);
+                        }
+                    } else {
+                        try {
+                            ProductGroup savedPg = posMigrationPersister.saveProductGroup(
+                                    ProductGroup.builder()
+                                            .name(incomingName)
+                                            .code(code)
+                                            .brand(parentBrand)
+                                            .category(ancestorCategory)
+                                            .build());
+                            productGroupsByCode.put(code, savedPg);
+                            log.info("ProductGroup created: code={}, name={}", code, incomingName);
+                        } catch (Exception e) {
+                            String reason = "Failed to persist ProductGroup: " + e.getMessage();
+                            failures.add(new ValidationError(code, reason));
+                            failedCodes.add(code);
+                            log.warn("ProductGroup import failed: code={}, reason={}", code, reason);
+                        }
+                    }
+                }
             }
         }
 
-        // ── STEP 8: PERSIST LEVEL 3 — Products ───────────────────────────────────────
+        // ── STEP 6: PROCESS PRODUCTS (ItemType = 2) ──────────────────────────────────
         for (PosDataItemDto item : items) {
             String code = item.getItemCode().trim();
-            if (failedCodes.contains(code) || itemHops.get(code) == null || itemHops.get(code) != 3) continue;
+            if (failedCodes.contains(code) || item.getItemType() != 2) continue;
 
             String incomingName = item.getItemName().trim();
 
@@ -357,7 +403,18 @@ public class PosMigrationServiceImpl implements PosMigrationService {
 
             String parentCode = item.getItemPrnt().trim();
             ProductGroup parentPg = productGroupsByCode.get(parentCode);
-            if (parentPg == null) {
+            ProductCategory parentCat = null;
+
+            if (parentPg != null) {
+                parentCat = parentPg.getCategory() != null ? parentPg.getCategory() :
+                        (parentPg.getBrand() != null ? parentPg.getBrand().getCategory() : null);
+            } else if (categoriesByCode.containsKey(parentCode)) {
+                parentCat = categoriesByCode.get(parentCode);
+            } else if (brandsByCode.containsKey(parentCode)) {
+                parentCat = brandsByCode.get(parentCode).getCategory();
+            }
+
+            if (parentPg == null && parentCat == null) {
                 String reason = "Parent ProductGroup with code '" + parentCode + "' was not found or failed validation";
                 failures.add(new ValidationError(code, reason));
                 failedCodes.add(code);
@@ -376,7 +433,7 @@ public class PosMigrationServiceImpl implements PosMigrationService {
                         .type(ProductType.INVENTORY)
                         .status(ProductStatus.ACTIVE)
                         .productGroup(parentPg)
-                        .category(parentPg.getBrand().getCategory())
+                        .category(parentCat)
                         .minStockLevel(item.getItemMinStock() != null ? item.getItemMinStock() : 0.0)
                         .maxStockLevel(item.getItemMaxStock() != null ? item.getItemMaxStock() : 0.0)
                         .barcodes(new ArrayList<>())
@@ -401,7 +458,7 @@ public class PosMigrationServiceImpl implements PosMigrationService {
             }
         }
 
-        // ── RESULT ────────────────────────────────────────────────────────────────────
+        // ── STEP 7: BUILD MIGRATION SUMMARY ──────────────────────────────────────────
         int failedRecords = failures.size();
         int successfulRecords = totalRecords - alreadyExisting - failedRecords;
 
