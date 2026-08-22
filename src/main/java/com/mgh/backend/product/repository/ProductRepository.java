@@ -36,6 +36,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("SELECT DISTINCT p.barcode FROM Product p WHERE p.deletedAt IS NULL")
     java.util.Set<String> findAllProductBarcodes();
 
+    /** Bulk-load barcode→name pairs for migration existence checks (avoids per-record queries). */
+    @Query("SELECT p.barcode, p.name FROM Product p WHERE p.deletedAt IS NULL AND p.barcode IS NOT NULL")
+    java.util.List<Object[]> findAllBarcodeAndNamePairs();
+
     @Query("""
             SELECT p FROM Product p
             WHERE p.id = :id AND p.deletedAt IS NULL
