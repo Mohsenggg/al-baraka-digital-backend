@@ -21,8 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,17 +42,19 @@ public class PosMigrationServiceTest {
     private ProductRepository productRepository;
     @Mock
     private ProductBarcodeRepository productBarcodeRepository;
+    @Mock
+    private PosMigrationPersister posMigrationPersister;
 
     @InjectMocks
     private PosMigrationServiceImpl posMigrationService;
 
     @BeforeEach
     public void setUp() {
-        // Setup default behavior for saveAll to return input list
-        lenient().when(categoryRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(brandRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(productGroupRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
-        lenient().when(productRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        // Setup default behavior for posMigrationPersister to return input entities
+        lenient().when(posMigrationPersister.saveCategory(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(posMigrationPersister.saveBrand(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(posMigrationPersister.saveProductGroup(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(posMigrationPersister.saveProduct(any(), any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -97,11 +99,11 @@ public class PosMigrationServiceTest {
         items.add(prodItem);
 
         // Mock empty database
-        when(categoryRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(brandRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productGroupRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productRepository.findAllProductBarcodes()).thenReturn(Collections.emptySet());
-        when(productBarcodeRepository.findAllBarcodeBarcodes()).thenReturn(Collections.emptySet());
+        when(categoryRepository.existsByCode(any())).thenReturn(false);
+        when(brandRepository.existsByCode(any())).thenReturn(false);
+        when(productGroupRepository.existsByCode(any())).thenReturn(false);
+        when(productRepository.existsByBarcodeAndDeletedAtIsNull(any())).thenReturn(false);
+        when(productBarcodeRepository.existsByBarcodeAndDeletedAtIsNull(any())).thenReturn(false);
 
         // Execute migration
         MigrationResultDto result = posMigrationService.importPosData(items);
@@ -109,39 +111,36 @@ public class PosMigrationServiceTest {
         // Verify result DTO
         assertNotNull(result);
         assertTrue(result.isSuccess());
-        assertEquals(1, result.getCategoriesCreated());
-        assertEquals(1, result.getBrandsCreated());
-        assertEquals(1, result.getProductGroupsCreated());
-        assertEquals(1, result.getProductsCreated());
-        assertEquals(4, result.getTotalRecordsProcessed());
+        assertEquals(4, result.getTotalRecords());
+        assertEquals(4, result.getSuccessfulRecords());
+        assertEquals(0, result.getFailedRecords());
+        assertTrue(result.getFailures().isEmpty());
 
-        // Verify saved structures via ArgumentCaptors
-        ArgumentCaptor<List<ProductCategory>> catCaptor = ArgumentCaptor.forClass(List.class);
-        verify(categoryRepository).saveAll(catCaptor.capture());
-        List<ProductCategory> savedCats = catCaptor.getValue();
-        assertEquals(1, savedCats.size());
-        assertEquals("01", savedCats.get(0).getCode());
-        assertEquals("مساحيق", savedCats.get(0).getName());
+        // Verify saved structures via Persister
+        ArgumentCaptor<ProductCategory> catCaptor = ArgumentCaptor.forClass(ProductCategory.class);
+        verify(posMigrationPersister).saveCategory(catCaptor.capture());
+        ProductCategory savedCat = catCaptor.getValue();
+        assertEquals("01", savedCat.getCode());
+        assertEquals("مساحيق", savedCat.getName());
 
-        ArgumentCaptor<List<Brand>> brandCaptor = ArgumentCaptor.forClass(List.class);
-        verify(brandRepository).saveAll(brandCaptor.capture());
-        List<Brand> savedBrands = brandCaptor.getValue();
-        assertEquals(1, savedBrands.size());
-        assertEquals("0101", savedBrands.get(0).getCode());
-        assertEquals("01", savedBrands.get(0).getCategory().getCode());
+        ArgumentCaptor<Brand> brandCaptor = ArgumentCaptor.forClass(Brand.class);
+        verify(posMigrationPersister).saveBrand(brandCaptor.capture());
+        Brand savedBrand = brandCaptor.getValue();
+        assertEquals("0101", savedBrand.getCode());
+        assertEquals("01", savedBrand.getCategory().getCode());
 
-        ArgumentCaptor<List<ProductGroup>> pgCaptor = ArgumentCaptor.forClass(List.class);
-        verify(productGroupRepository).saveAll(pgCaptor.capture());
-        List<ProductGroup> savedPgs = pgCaptor.getValue();
-        assertEquals(1, savedPgs.size());
-        assertEquals("01016", savedPgs.get(0).getCode());
-        assertEquals("0101", savedPgs.get(0).getBrand().getCode());
+        ArgumentCaptor<ProductGroup> pgCaptor = ArgumentCaptor.forClass(ProductGroup.class);
+        verify(posMigrationPersister).saveProductGroup(pgCaptor.capture());
+        ProductGroup savedPg = pgCaptor.getValue();
+        assertEquals("01016", savedPg.getCode());
+        assertEquals("0101", savedPg.getBrand().getCode());
 
-        ArgumentCaptor<List<Product>> prodCaptor = ArgumentCaptor.forClass(List.class);
-        verify(productRepository).saveAll(prodCaptor.capture());
-        List<Product> savedProds = prodCaptor.getValue();
-        assertEquals(1, savedProds.size());
-        Product prod = savedProds.get(0);
+        ArgumentCaptor<Product> prodCaptor = ArgumentCaptor.forClass(Product.class);
+        ArgumentCaptor<ProductBarcode> bcCaptor = ArgumentCaptor.forClass(ProductBarcode.class);
+        verify(posMigrationPersister).saveProduct(prodCaptor.capture(), bcCaptor.capture());
+        Product prod = prodCaptor.getValue();
+        ProductBarcode pb = bcCaptor.getValue();
+
         assertEquals("8006540852170", prod.getBarcode());
         assertEquals("اريال 1كيلو لافندر", prod.getName());
         assertEquals("01016", prod.getProductGroup().getCode());
@@ -150,8 +149,6 @@ public class PosMigrationServiceTest {
         assertEquals(100.0, prod.getMaxStockLevel());
 
         // Verify default barcode
-        assertEquals(1, prod.getBarcodes().size());
-        ProductBarcode pb = prod.getBarcodes().get(0);
         assertEquals("8006540852170", pb.getBarcode());
         assertEquals(new BigDecimal("100.00"), pb.getBuyingPrice());
         assertEquals(new BigDecimal("120.00"), pb.getSellingPrice());
@@ -159,8 +156,71 @@ public class PosMigrationServiceTest {
     }
 
     @Test
+    public void testPartialSuccessMigration() {
+        // Mixed input: 
+        // - Tree A (valid Category '01' and Brand '0101') -> should succeed
+        // - Tree B (invalid: Category '02' has invalid ItemType = 2) -> Category should fail, child Brand '0201' should fail
+        List<PosDataItemDto> items = new ArrayList<>();
+
+        // Tree A
+        PosDataItemDto catA = new PosDataItemDto();
+        catA.setItemCode("01");
+        catA.setItemPrnt("0");
+        catA.setItemName("Category A");
+        catA.setItemType(1);
+        items.add(catA);
+
+        PosDataItemDto brandA = new PosDataItemDto();
+        brandA.setItemCode("0101");
+        brandA.setItemPrnt("01");
+        brandA.setItemName("Brand A");
+        brandA.setItemType(1);
+        items.add(brandA);
+
+        // Tree B
+        PosDataItemDto catB = new PosDataItemDto();
+        catB.setItemCode("02");
+        catB.setItemPrnt("0");
+        catB.setItemName("Category B");
+        catB.setItemType(2); // Invalid type for Category (hops=0)
+        items.add(catB);
+
+        PosDataItemDto brandB = new PosDataItemDto();
+        brandB.setItemCode("0201");
+        brandB.setItemPrnt("02");
+        brandB.setItemName("Brand B");
+        brandB.setItemType(1);
+        items.add(brandB);
+
+        when(categoryRepository.existsByCode(any())).thenReturn(false);
+        when(brandRepository.existsByCode(any())).thenReturn(false);
+
+        // Execute migration
+        MigrationResultDto result = posMigrationService.importPosData(items);
+
+        // Verify result
+        assertNotNull(result);
+        assertTrue(result.isSuccess()); // Process completes successfully
+        assertEquals(4, result.getTotalRecords());
+        assertEquals(2, result.getSuccessfulRecords()); // Tree A (catA and brandA)
+        assertEquals(2, result.getFailedRecords()); // Tree B (catB and brandB)
+
+        // Verify Tree A was saved
+        verify(posMigrationPersister, times(1)).saveCategory(argThat(c -> c.getCode().equals("01")));
+        verify(posMigrationPersister, times(1)).saveBrand(argThat(b -> b.getCode().equals("0101")));
+
+        // Verify Tree B was NOT saved
+        verify(posMigrationPersister, never()).saveCategory(argThat(c -> c.getCode().equals("02")));
+        verify(posMigrationPersister, never()).saveBrand(argThat(b -> b.getCode().equals("0201")));
+
+        // Verify failures messages
+        assertEquals(2, result.getFailures().size());
+        assertTrue(result.getFailures().stream().anyMatch(f -> f.getItemCode().equals("02") && f.getReason().contains("must have ItemType = 1")));
+        assertTrue(result.getFailures().stream().anyMatch(f -> f.getItemCode().equals("0201") && f.getReason().contains("failed validation/import")));
+    }
+
+    @Test
     public void testMigrationWithArbitraryOrder() {
-        // Items in arbitrary order: ProductGroup -> Category -> Product -> Brand
         List<PosDataItemDto> items = new ArrayList<>();
 
         PosDataItemDto pgItem = new PosDataItemDto();
@@ -191,21 +251,18 @@ public class PosMigrationServiceTest {
         brandItem.setItemType(1);
         items.add(brandItem);
 
-        when(categoryRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(brandRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productGroupRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productRepository.findAllProductBarcodes()).thenReturn(Collections.emptySet());
-        when(productBarcodeRepository.findAllBarcodeBarcodes()).thenReturn(Collections.emptySet());
+        when(categoryRepository.existsByCode(any())).thenReturn(false);
+        when(brandRepository.existsByCode(any())).thenReturn(false);
+        when(productGroupRepository.existsByCode(any())).thenReturn(false);
+        when(productRepository.existsByBarcodeAndDeletedAtIsNull(any())).thenReturn(false);
+        when(productBarcodeRepository.existsByBarcodeAndDeletedAtIsNull(any())).thenReturn(false);
 
-        // Execute migration - should successfully build and resolve hierarchy despite order
         MigrationResultDto result = posMigrationService.importPosData(items);
 
         assertNotNull(result);
         assertTrue(result.isSuccess());
-        assertEquals(1, result.getCategoriesCreated());
-        assertEquals(1, result.getBrandsCreated());
-        assertEquals(1, result.getProductGroupsCreated());
-        assertEquals(1, result.getProductsCreated());
+        assertEquals(4, result.getSuccessfulRecords());
+        assertEquals(0, result.getFailedRecords());
     }
 
     @Test
@@ -226,13 +283,21 @@ public class PosMigrationServiceTest {
         item2.setItemType(1);
         items.add(item2);
 
-        PosMigrationException ex = assertThrows(PosMigrationException.class, () -> {
-            posMigrationService.importPosData(items);
-        });
+        when(categoryRepository.existsByCode("01")).thenReturn(false);
 
-        assertEquals(1, ex.getErrors().size());
-        assertEquals("01", ex.getErrors().get(0).getItemCode());
-        assertTrue(ex.getErrors().get(0).getReason().contains("Duplicate ItemCode"));
+        MigrationResultDto result = posMigrationService.importPosData(items);
+
+        // Verification - should complete successfully but mark one as duplicate failure, and save the other!
+        assertTrue(result.isSuccess());
+        assertEquals(2, result.getTotalRecords());
+        assertEquals(1, result.getSuccessfulRecords());
+        assertEquals(1, result.getFailedRecords());
+
+        // Verify valid one was saved
+        verify(posMigrationPersister, times(1)).saveCategory(any());
+
+        assertEquals("01", result.getFailures().get(0).getItemCode());
+        assertTrue(result.getFailures().get(0).getReason().contains("Conflicting duplicate ItemCode"));
     }
 
     @Test
@@ -246,39 +311,17 @@ public class PosMigrationServiceTest {
         item.setItemType(1);
         items.add(item);
 
-        when(categoryRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(brandRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productGroupRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productRepository.findAllProductBarcodes()).thenReturn(Collections.emptySet());
-        when(productBarcodeRepository.findAllBarcodeBarcodes()).thenReturn(Collections.emptySet());
+        // Mock that parent code does not exist in the database
+        when(categoryRepository.existsByCode("01")).thenReturn(false);
+        when(brandRepository.existsByCode("01")).thenReturn(false);
+        when(productGroupRepository.existsByCode("01")).thenReturn(false);
 
-        PosMigrationException ex = assertThrows(PosMigrationException.class, () -> {
-            posMigrationService.importPosData(items);
-        });
+        MigrationResultDto result = posMigrationService.importPosData(items);
 
-        assertEquals(1, ex.getErrors().size());
-        assertEquals("0101", ex.getErrors().get(0).getItemCode());
-        assertTrue(ex.getErrors().get(0).getReason().contains("Parent with code '01' was not found"));
-    }
-
-    @Test
-    public void testInvalidItemType() {
-        List<PosDataItemDto> items = new ArrayList<>();
-
-        PosDataItemDto item = new PosDataItemDto();
-        item.setItemCode("01");
-        item.setItemPrnt("0");
-        item.setItemName("Category 1");
-        item.setItemType(3); // Invalid type! (only 1 or 2 allowed)
-        items.add(item);
-
-        PosMigrationException ex = assertThrows(PosMigrationException.class, () -> {
-            posMigrationService.importPosData(items);
-        });
-
-        assertEquals(1, ex.getErrors().size());
-        assertEquals("01", ex.getErrors().get(0).getItemCode());
-        assertTrue(ex.getErrors().get(0).getReason().contains("Invalid ItemType"));
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getFailedRecords());
+        assertEquals("0101", result.getFailures().get(0).getItemCode());
+        assertTrue(result.getFailures().get(0).getReason().contains("was not found in input or database"));
     }
 
     @Test
@@ -293,18 +336,13 @@ public class PosMigrationServiceTest {
         items.add(item);
 
         // Mock that Category code "01" already exists in DB
-        when(categoryRepository.findAllCodes()).thenReturn(Set.of("01"));
-        when(brandRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productGroupRepository.findAllCodes()).thenReturn(Collections.emptySet());
-        when(productRepository.findAllProductBarcodes()).thenReturn(Collections.emptySet());
-        when(productBarcodeRepository.findAllBarcodeBarcodes()).thenReturn(Collections.emptySet());
+        when(categoryRepository.existsByCode("01")).thenReturn(true);
 
-        PosMigrationException ex = assertThrows(PosMigrationException.class, () -> {
-            posMigrationService.importPosData(items);
-        });
+        MigrationResultDto result = posMigrationService.importPosData(items);
 
-        assertEquals(1, ex.getErrors().size());
-        assertEquals("01", ex.getErrors().get(0).getItemCode());
-        assertTrue(ex.getErrors().get(0).getReason().contains("already exists in database"));
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getFailedRecords());
+        assertEquals("01", result.getFailures().get(0).getItemCode());
+        assertTrue(result.getFailures().get(0).getReason().contains("already exists in database"));
     }
 }
