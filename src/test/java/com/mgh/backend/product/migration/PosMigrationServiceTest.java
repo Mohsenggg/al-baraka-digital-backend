@@ -126,6 +126,46 @@ public class PosMigrationServiceTest {
     }
 
     @Test
+    void testTwoLevelHierarchy_VanishExample_NoBrandLevel() {
+        // Example from user: 08 "سوائل ومنظفات" -> 083 "فانش" (ProductGroup, brand=null, category=08) -> Product
+        stubEmptyDatabase();
+
+        List<PosDataItemDto> items = List.of(
+                item("08", "0", "سوائل ومنظفات", 1),
+                item("083", "08", "فانش", 1),
+                product("6221155012345", "083", "فانش سائل 1 لتر",
+                        new BigDecimal("45.00"), new BigDecimal("55.00"), 3.0, 60.0)
+        );
+
+        MigrationResultDto result = posMigrationService.importPosData(items);
+
+        assertTrue(result.isSuccess());
+        assertEquals(3, result.getTotalRecords());
+        assertEquals(3, result.getSuccessfulRecords());
+        assertEquals(0, result.getAlreadyExisting());
+        assertEquals(0, result.getFailedRecords());
+        assertTrue(result.getFailures().isEmpty());
+
+        // Verify ProductGroup has brand = null and category = 08
+        ArgumentCaptor<ProductGroup> pgCap = ArgumentCaptor.forClass(ProductGroup.class);
+        verify(posMigrationPersister).saveProductGroup(pgCap.capture());
+        ProductGroup pg = pgCap.getValue();
+        assertEquals("083", pg.getCode());
+        assertEquals("فانش", pg.getName());
+        assertNull(pg.getBrand());
+        assertNotNull(pg.getCategory());
+        assertEquals("08", pg.getCategory().getCode());
+
+        // Verify Product linked to ProductGroup and Category
+        ArgumentCaptor<Product> prodCap = ArgumentCaptor.forClass(Product.class);
+        verify(posMigrationPersister).saveProduct(prodCap.capture(), any());
+        Product prod = prodCap.getValue();
+        assertEquals("6221155012345", prod.getBarcode());
+        assertEquals("083", prod.getProductGroup().getCode());
+        assertEquals("08", prod.getCategory().getCode());
+    }
+
+    @Test
     void testThreeLevelHierarchy_Category_Brand_ProductGroup_Product() {
         // Example: Category "01" -> Brand "0101" -> ProductGroup "01016" -> Product "8006540852170"
         stubEmptyDatabase();
