@@ -73,6 +73,7 @@ public interface    ProductMapper {
                 .category(product.getCategory() != null ? product.getCategory().getName() : null)
                 .manufacturer(product.getManufacturer() != null ? product.getManufacturer().getName() : null)
                 .sellingPrice(defaultBarcode != null ? defaultBarcode.getSellingPrice() : BigDecimal.ZERO)
+                .buyingPrice(defaultBarcode != null ? defaultBarcode.getBuyingPrice() : null)
                 .stock(totalStock)
                 .status(product.getStatus() != null ? product.getStatus().getValue() : null)
                 .build();

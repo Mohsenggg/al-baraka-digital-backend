@@ -17,6 +17,7 @@ public class ProductListItemDto {
     private String category;
     private String manufacturer;
     private BigDecimal sellingPrice;
+    private BigDecimal buyingPrice;
     private Double stock;
     private String status;
 }
