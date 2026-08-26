@@ -19,6 +19,10 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
     @Query("SELECT c.code FROM ProductCategory c WHERE c.code IS NOT NULL")
     Set<String> findAllCodes();
 
+    List<ProductCategory> findAllByOrderByNameAsc();
+
+    boolean existsByName(String name);
+
     /** Bulk-load all categories that have a migration code (used by migration service). */
     @Query("SELECT c FROM ProductCategory c WHERE c.code IS NOT NULL")
     List<ProductCategory> findAllWithCode();

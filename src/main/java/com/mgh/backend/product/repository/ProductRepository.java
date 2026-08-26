@@ -79,4 +79,23 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             GROUP BY c.childProduct.id, c.parentProduct.id, c.parentProduct.name, c.parentQuantity, c.childQuantity, c.isDefault
             """)
     List<com.mgh.backend.product.dto.response.RefillOptionProjection> findActiveRefillOptions(@Param("status") ProductStatus status);
+
+    /** Bulk-load all products with productGroup and category for tree hierarchy assembly.
+     * NOTE: barcodes are NOT fetched here to avoid Hibernate's SQL-level truncation
+     * when JOIN FETCHing a @OneToMany collection combined with ORDER BY.
+     * Barcodes are fetched separately via findAllBarcodesByProductIds. */
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.productGroup pg LEFT JOIN FETCH p.category c WHERE p.deletedAt IS NULL ORDER BY p.name ASC")
+    List<Product> findAllActiveForTree();
+
+    /** Bulk-load all active (non-deleted) barcodes — used to merge with products after findAllActiveForTree. */
+    @Query("SELECT pb FROM ProductBarcode pb WHERE pb.deletedAt IS NULL AND pb.product.deletedAt IS NULL")
+    List<com.mgh.backend.product.entity.ProductBarcode> findAllActiveBarcodes();
+
+    @Query(value = "SELECT p FROM Product p LEFT JOIN FETCH p.barcodes pb WHERE p.productGroup.id = :groupId AND p.deletedAt IS NULL",
+           countQuery = "SELECT count(p) FROM Product p WHERE p.productGroup.id = :groupId AND p.deletedAt IS NULL")
+    Page<Product> findByProductGroupIdAndDeletedAtIsNull(@Param("groupId") Long groupId, Pageable pageable);
+
+    boolean existsByProductGroupIdAndDeletedAtIsNull(Long productGroupId);
+
+    boolean existsByCategoryIdAndDeletedAtIsNull(Long categoryId);
 }

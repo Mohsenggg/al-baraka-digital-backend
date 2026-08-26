@@ -17,7 +17,12 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     @Query("SELECT b.code FROM Brand b")
     Set<String> findAllCodes();
 
-    /** Bulk-load all brands with their category eagerly fetched (used by migration service). */
-    @Query("SELECT b FROM Brand b JOIN FETCH b.category")
+    /** Bulk-load all brands with their category eagerly fetched (used by migration service and tree service). */
+    @Query("SELECT b FROM Brand b JOIN FETCH b.category ORDER BY b.name ASC")
     List<Brand> findAllWithCategory();
+
+    @Query("SELECT b FROM Brand b JOIN FETCH b.category WHERE b.category.id = :categoryId ORDER BY b.name ASC")
+    List<Brand> findByCategoryId(@org.springframework.data.repository.query.Param("categoryId") Long categoryId);
+
+    boolean existsByCategoryId(Long categoryId);
 }
