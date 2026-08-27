@@ -65,7 +65,7 @@ public class ProductTreeController {
     @GetMapping("/groups/{groupId}/products")
     public ResponseEntity<PageResponseDto<TreeProductItemDto>> getGroupProducts(
             @PathVariable Long groupId,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 100) Pageable pageable
     ) {
         return ResponseEntity.ok(productTreeService.getGroupProducts(groupId, pageable));
     }

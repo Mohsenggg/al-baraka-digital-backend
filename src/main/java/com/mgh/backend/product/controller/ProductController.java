@@ -48,7 +48,7 @@ public class ProductController {
             @RequestParam(required = false) Long manufacturerId,
             @RequestParam(required = false) Long supplierId,
             @RequestParam(required = false) ProductStatus status,
-            @PageableDefault(page = 0, size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @PageableDefault(page = 0, size = 100, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         ProductSearchFilter filter = new ProductSearchFilter();
         filter.setQuery(query);
