@@ -19,6 +19,7 @@ public class HeaderElement implements ReceiptElement {
     private String seller;
     private String receiptNumber;
     private String date;
+    private String time;
 
     @Override
     public String getType() {

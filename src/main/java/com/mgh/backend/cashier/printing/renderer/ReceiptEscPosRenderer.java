@@ -11,32 +11,33 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 
 @Component
 public class ReceiptEscPosRenderer {
 
-    // 80mm printers typically support 48 characters per line (Font A: 12x24, 576 dots)
-    private static final int LINE_WIDTH = 48; 
-    
-    // Widths for columns: Item(22), Qty(8), Price(9), Total(9)
+    // 80mm thermal printers support 48 characters per line (Font A)
+    private static final int LINE_WIDTH = 48;
+
+    // Column widths for 48-char line: Total(9), Price(9), Qty(8), Item(22)
     private static final int COL_TOTAL_WIDTH = 9;
     private static final int COL_PRICE_WIDTH = 9;
     private static final int COL_QTY_WIDTH = 8;
     private static final int COL_ITEM_WIDTH = 22;
 
+    private static final String DASHED_LINE = "------------------------------------------------";
+    private static final String DOUBLE_LINE = "================================================";
+
     public byte[] render(ReceiptDocument doc) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        EscPos escpos = new EscPos(baos);
 
-        // Configure encoding for Arabic
-        // Note: Full RTL shaping depends on printer firmware. If the printer prints disconnected Arabic,
-        // an external shaping library or image-based printing (Graphics) is required.
-        // For Xprinters, Arabic is often CP864 (Code table 40) or Windows-1256 (Code table 22).
-        // Let's use the built-in WPC1256_Arabic if available, or just set by value.
+        // 1. Initialize printer and send raw code page switch command
+        // ESC @ (Initialize)
+        baos.write(new byte[]{0x1B, 0x40});
+        // ESC t 22 (Code table 22: Windows-1256 on Xprinter XP-D200N and compatible 80mm printers)
+        baos.write(new byte[]{0x1B, 0x74, 22});
+
+        EscPos escpos = new EscPos(baos);
         escpos.setCharsetName("windows-1256");
-        // Sending ESC t 22 (code page 22 for windows-1256 on many Xprinters)
-        escpos.write(Arrays.toString(new byte[]{0x1B, 0x74, 22}));
 
         Style titleStyle = new Style()
                 .setFontSize(Style.FontSize._2, Style.FontSize._2)
@@ -50,80 +51,92 @@ public class ReceiptEscPosRenderer {
 
         for (ReceiptElement el : doc.getElements()) {
             if (el instanceof HeaderElement header) {
-                if (header.getStoreName() != null) {
+                if (header.getStoreName() != null && !header.getStoreName().isBlank()) {
                     escpos.writeLF(titleStyle, header.getStoreName());
                 }
                 escpos.feed(1);
-                
-                // Print right-aligned fields as shown in the reference
+
+                // Right-aligned meta fields
                 printRightAlignedField(escpos, rightStyle, "الفرع        : ", header.getBranch());
                 printRightAlignedField(escpos, rightStyle, "التليفون     : ", header.getPhone());
                 printRightAlignedField(escpos, rightStyle, "العنوان      : ", header.getAddress());
                 printRightAlignedField(escpos, rightStyle, "المستخدم     : ", header.getUser());
-                
-                escpos.feed(1);
-                if (header.getReceiptNumber() != null) {
-                    // Barcode in center
+
+                // Barcode for receipt number (centered)
+                if (header.getReceiptNumber() != null && !header.getReceiptNumber().isBlank()) {
+                    escpos.feed(1);
                     BarCode barcode = new BarCode();
                     barcode.setSystem(BarCode.BarCodeSystem.CODE128);
                     barcode.setJustification(EscPosConst.Justification.Center);
-                    // CODE128 requires a charset prefix in escpos-coffee (e.g. {B)
                     escpos.write(barcode, "{B" + header.getReceiptNumber());
                     escpos.feed(1);
                 }
 
                 printRightAlignedField(escpos, rightStyle, "البائع       : ", header.getSeller());
                 printRightAlignedField(escpos, rightStyle, "بون رقم      : ", header.getReceiptNumber());
-                printRightAlignedField(escpos, rightStyle, "التاريخ      : ", header.getDate());
-                
+
+                // Date and time line (Time on left, Date in middle, Label on right)
+                String timeStr = header.getTime() != null ? header.getTime() : "";
+                String dateStr = header.getDate() != null ? header.getDate() : "";
+                String dateTimeLine = padRight(timeStr, 12) + padCenter(dateStr, 16) + padLeft("التاريخ      : ", 20);
+                escpos.writeLF(leftStyle, dateTimeLine);
+
             } else if (el instanceof ItemsTableElement items) {
-                // Print headers (Total | Price | Qty | Item)
+                // Table Headers (Total | Price | Qty | Item)
                 String headerRow = padRight("الإجمالي", COL_TOTAL_WIDTH) +
                                    padRight("السعر", COL_PRICE_WIDTH) +
                                    padRight("الكمية", COL_QTY_WIDTH) +
                                    padLeft("الصنف", COL_ITEM_WIDTH);
                 escpos.writeLF(boldStyle, headerRow);
-                
+
                 for (ItemsTableElement.ItemRow row : items.getItems()) {
                     String name = row.getName() != null ? row.getName() : "";
                     if (name.length() > COL_ITEM_WIDTH) {
-                        name = name.substring(0, COL_ITEM_WIDTH); // Truncate safely
+                        name = name.substring(0, COL_ITEM_WIDTH);
                     }
-                    
+
                     String itemRow = padRight(row.getTotalPrice(), COL_TOTAL_WIDTH) +
                                      padRight(row.getUnitPrice(), COL_PRICE_WIDTH) +
                                      padRight(row.getQuantity(), COL_QTY_WIDTH) +
                                      padLeft(name, COL_ITEM_WIDTH);
                     escpos.writeLF(leftStyle, itemRow);
                 }
+
             } else if (el instanceof TotalsElement totals) {
-                escpos.feed(1);
-                
-                // "إجمالي قطع : 2             140.00"
-                String totalItemsLine = padRight(totals.getTotalItemsAmount(), COL_TOTAL_WIDTH + COL_PRICE_WIDTH) +
-                                        padLeft("إجمالي قطع : " + totals.getTotalItemsCount(), LINE_WIDTH - (COL_TOTAL_WIDTH + COL_PRICE_WIDTH));
-                escpos.writeLF(boldStyle, totalItemsLine);
-                
-                escpos.writeLF(leftStyle, "------------------------------------------------");
-                
+                // Total pieces line: Amount on left, Quantity in middle, Label on right
+                String totalPiecesLine = padRight(totals.getTotalItemsAmount(), 12) +
+                                        padCenter(totals.getTotalItemsCount(), 12) +
+                                        padLeft("إجمالي قطع : ", 24);
+                escpos.writeLF(boldStyle, totalPiecesLine);
+
+                // Double line separator
+                escpos.writeLF(leftStyle, DOUBLE_LINE);
+
                 printRightAlignedField(escpos, rightStyle, "خصم الفاتورة : ", totals.getDiscountAmount());
+                escpos.writeLF(leftStyle, DASHED_LINE);
+
                 printRightAlignedField(escpos, rightStyle, "صافي الفاتورة: ", totals.getNetTotal());
-                printRightAlignedField(escpos, rightStyle, "المدفوع     : ", totals.getPaidAmount());
-                printRightAlignedField(escpos, rightStyle, "الباقي      : ", totals.getRemainingAmount());
-                
+                escpos.writeLF(leftStyle, DASHED_LINE);
+
+                printRightAlignedField(escpos, rightStyle, "المدفوع      : ", totals.getPaidAmount());
+                escpos.writeLF(leftStyle, DASHED_LINE);
+
+                printRightAlignedField(escpos, rightStyle, "الباقي       : ", totals.getRemainingAmount());
+                escpos.writeLF(leftStyle, DOUBLE_LINE);
+
             } else if (el instanceof SeparatorElement) {
-                // 48 dashes for 80mm printer
-                escpos.writeLF(leftStyle, "------------------------------------------------"); 
+                escpos.writeLF(leftStyle, DASHED_LINE);
+
             } else if (el instanceof FooterElement footer) {
                 escpos.feed(1);
                 escpos.writeLF(centerStyle, footer.getText());
             }
         }
-        
+
         escpos.feed(4);
         escpos.cut(EscPos.CutMode.FULL);
         escpos.close();
-        
+
         return baos.toByteArray();
     }
 
@@ -132,7 +145,7 @@ public class ReceiptEscPosRenderer {
         String line = safeValue + "  " + label;
         escpos.writeLF(style, line);
     }
-    
+
     private String padRight(String s, int n) {
         if (s == null) s = "";
         return String.format("%-" + n + "s", s);
@@ -141,5 +154,13 @@ public class ReceiptEscPosRenderer {
     private String padLeft(String s, int n) {
         if (s == null) s = "";
         return String.format("%" + n + "s", s);
+    }
+
+    private String padCenter(String s, int n) {
+        if (s == null) s = "";
+        if (s.length() >= n) return s;
+        int leftPadding = (n - s.length()) / 2;
+        int rightPadding = n - s.length() - leftPadding;
+        return " ".repeat(leftPadding) + s + " ".repeat(rightPadding);
     }
 }

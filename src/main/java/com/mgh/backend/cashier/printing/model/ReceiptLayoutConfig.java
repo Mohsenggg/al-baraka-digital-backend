@@ -15,5 +15,7 @@ public class ReceiptLayoutConfig {
     @Builder.Default
     private boolean showTaxDetails = true;
     @Builder.Default
-    private String footerText = "Thank you for your visit!";
+    private boolean showBarcode = true;
+    @Builder.Default
+    private String footerText = "يسعدنا زيارتكم لنا بالمحل...";
 }
