@@ -1,0 +1,13 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.autobuild.enabled": false,
+    "java.jdt.ls.java.home": "d:/Software/AL-Baraka/Pos/Cashier-web/.jdk21",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "d:/Software/AL-Baraka/Pos/Cashier-web/.jdk21",
+            "default": true
+        }
+    ]
+}
