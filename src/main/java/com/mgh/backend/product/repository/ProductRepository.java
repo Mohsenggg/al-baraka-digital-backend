@@ -1,6 +1,7 @@
 package com.mgh.backend.product.repository;
 
 import com.mgh.backend.product.entity.Product;
+import com.mgh.backend.product.entity.ProductCategory;
 import com.mgh.backend.product.entity.ProductStatus;
 import com.mgh.backend.product.dto.response.LightweightProductDto;
 import jakarta.persistence.LockModeType;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -98,4 +100,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     boolean existsByProductGroupIdAndDeletedAtIsNull(Long productGroupId);
 
     boolean existsByCategoryIdAndDeletedAtIsNull(Long categoryId);
+
+    List<Product> findAllByIdInAndDeletedAtIsNull(List<Long> ids);
+
+    @Modifying
+    @Query("UPDATE Product p SET p.category = :category WHERE p.productGroup.id IN :groupIds AND p.deletedAt IS NULL")
+    int updateCategoryForProductGroups(@Param("category") ProductCategory category, @Param("groupIds") List<Long> groupIds);
+
+    @Modifying
+    @Query("UPDATE Product p SET p.category = :category WHERE p.productGroup.id = :groupId AND p.deletedAt IS NULL")
+    int updateCategoryForProductGroup(@Param("category") ProductCategory category, @Param("groupId") Long groupId);
 }

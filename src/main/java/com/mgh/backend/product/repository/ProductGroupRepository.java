@@ -30,4 +30,12 @@ public interface ProductGroupRepository extends JpaRepository<ProductGroup, Long
     boolean existsByBrandId(Long brandId);
 
     boolean existsByCategoryId(Long categoryId);
+
+    boolean existsByNameIgnoreCaseAndBrandIdAndIdNot(String name, Long brandId, Long id);
+
+    boolean existsByNameIgnoreCaseAndBrandId(String name, Long brandId);
+
+    boolean existsByNameIgnoreCaseAndCategoryIdAndBrandIsNullAndIdNot(String name, Long categoryId, Long id);
+
+    boolean existsByNameIgnoreCaseAndCategoryIdAndBrandIsNull(String name, Long categoryId);
 }

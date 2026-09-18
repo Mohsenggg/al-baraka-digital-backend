@@ -25,4 +25,8 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     List<Brand> findByCategoryId(@org.springframework.data.repository.query.Param("categoryId") Long categoryId);
 
     boolean existsByCategoryId(Long categoryId);
+
+    boolean existsByNameIgnoreCaseAndCategoryIdAndIdNot(String name, Long categoryId, Long id);
+
+    boolean existsByNameIgnoreCaseAndCategoryId(String name, Long categoryId);
 }

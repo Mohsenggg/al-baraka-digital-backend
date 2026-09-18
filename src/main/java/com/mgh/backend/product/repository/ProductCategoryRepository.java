@@ -23,6 +23,8 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 
     boolean existsByName(String name);
 
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
     /** Bulk-load all categories that have a migration code (used by migration service). */
     @Query("SELECT c FROM ProductCategory c WHERE c.code IS NOT NULL")
     List<ProductCategory> findAllWithCode();

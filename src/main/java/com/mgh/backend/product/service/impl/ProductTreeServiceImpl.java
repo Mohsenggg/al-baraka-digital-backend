@@ -1,7 +1,11 @@
 package com.mgh.backend.product.service.impl;
 
 import com.mgh.backend.cashier.dto.PageResponseDto;
+import com.mgh.backend.cashier.exception.BadRequestException;
+import com.mgh.backend.cashier.exception.ConflictException;
+import com.mgh.backend.cashier.exception.ResourceNotFoundException;
 import com.mgh.backend.product.dto.response.BrandTreeNodeDto;
+import com.mgh.backend.product.dto.response.BulkMoveProductsResponse;
 import com.mgh.backend.product.dto.response.CategoryChildNodesDto;
 import com.mgh.backend.product.dto.response.CategoryTreeNodeDto;
 import com.mgh.backend.product.dto.response.ProductGroupTreeNodeDto;
@@ -630,5 +634,242 @@ public class ProductTreeServiceImpl implements ProductTreeService {
             return "low";
         }
         return "healthy";
+    }
+
+    // ==========================================
+    // TASK 1: Node Deletion (Empty Only)
+    // ==========================================
+
+    @Override
+    @Transactional
+    public void deleteCategory(Long id) {
+        ProductCategory category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+
+        boolean hasBrands = brandRepository.existsByCategoryId(id);
+        boolean hasGroups = productGroupRepository.existsByCategoryId(id);
+        boolean hasProducts = productRepository.existsByCategoryIdAndDeletedAtIsNull(id);
+
+        if (hasBrands || hasGroups || hasProducts) {
+            throw new ConflictException("Cannot delete Category containing brands, product groups, or products");
+        }
+
+        categoryRepository.delete(category);
+    }
+
+    @Override
+    @Transactional
+    public void deleteBrand(Long id) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + id));
+
+        if (productGroupRepository.existsByBrandId(id)) {
+            throw new ConflictException("Cannot delete Brand containing product groups");
+        }
+
+        brandRepository.delete(brand);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProductGroup(Long id) {
+        ProductGroup group = productGroupRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product Group not found with id: " + id));
+
+        if (productRepository.existsByProductGroupIdAndDeletedAtIsNull(id)) {
+            throw new ConflictException("Cannot delete Product Group containing products");
+        }
+
+        productGroupRepository.delete(group);
+    }
+
+    // ==========================================
+    // TASK 2: Node Renaming (Scoped Uniqueness)
+    // ==========================================
+
+    @Override
+    @Transactional
+    public void renameCategory(Long id, String newName) {
+        ProductCategory category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + id));
+
+        String trimmedName = newName != null ? newName.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Category name must be between 2 and 255 characters");
+        }
+
+        if (categoryRepository.existsByNameIgnoreCaseAndIdNot(trimmedName, id)) {
+            throw new ConflictException("Category with name '" + trimmedName + "' already exists");
+        }
+
+        category.setName(trimmedName);
+        categoryRepository.save(category);
+    }
+
+    @Override
+    @Transactional
+    public void renameBrand(Long id, String newName) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + id));
+
+        String trimmedName = newName != null ? newName.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Brand name must be between 2 and 255 characters");
+        }
+
+        Long categoryId = brand.getCategory() != null ? brand.getCategory().getId() : null;
+        if (categoryId != null && brandRepository.existsByNameIgnoreCaseAndCategoryIdAndIdNot(trimmedName, categoryId, id)) {
+            throw new ConflictException("Brand with name '" + trimmedName + "' already exists in this category");
+        }
+
+        brand.setName(trimmedName);
+        brandRepository.save(brand);
+    }
+
+    @Override
+    @Transactional
+    public void renameProductGroup(Long id, String newName) {
+        ProductGroup group = productGroupRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product Group not found with id: " + id));
+
+        String trimmedName = newName != null ? newName.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Product group name must be between 2 and 255 characters");
+        }
+
+        boolean duplicateExists = false;
+        if (group.getBrand() != null) {
+            duplicateExists = productGroupRepository.existsByNameIgnoreCaseAndBrandIdAndIdNot(trimmedName, group.getBrand().getId(), id);
+        } else if (group.getCategory() != null) {
+            duplicateExists = productGroupRepository.existsByNameIgnoreCaseAndCategoryIdAndBrandIsNullAndIdNot(trimmedName, group.getCategory().getId(), id);
+        }
+
+        if (duplicateExists) {
+            throw new ConflictException("Product group with name '" + trimmedName + "' already exists in this brand/category");
+        }
+
+        group.setName(trimmedName);
+        productGroupRepository.save(group);
+    }
+
+    // ==========================================
+    // TASK 3: Moving Nodes & Bulk Moving Products
+    // ==========================================
+
+    @Override
+    @Transactional
+    public void moveBrand(Long brandId, Long targetCategoryId) {
+        Brand brand = brandRepository.findById(brandId)
+                .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + brandId));
+
+        ProductCategory targetCategory = categoryRepository.findById(targetCategoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target category not found with id: " + targetCategoryId));
+
+        if (brand.getCategory() != null && brand.getCategory().getId().equals(targetCategoryId)) {
+            throw new BadRequestException("Brand is already assigned to target category");
+        }
+
+        if (brandRepository.existsByNameIgnoreCaseAndCategoryIdAndIdNot(brand.getName(), targetCategoryId, brandId)) {
+            throw new ConflictException("A brand named '" + brand.getName() + "' already exists in target category");
+        }
+
+        brand.setCategory(targetCategory);
+        brandRepository.save(brand);
+
+        List<ProductGroup> groups = productGroupRepository.findByBrandId(brandId);
+        if (!groups.isEmpty()) {
+            List<Long> groupIds = new ArrayList<>();
+            for (ProductGroup g : groups) {
+                g.setCategory(targetCategory);
+                groupIds.add(g.getId());
+            }
+            productGroupRepository.saveAll(groups);
+            productRepository.updateCategoryForProductGroups(targetCategory, groupIds);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void moveProductGroup(Long groupId, Long targetBrandId) {
+        ProductGroup group = productGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product Group not found with id: " + groupId));
+
+        Brand targetBrand = brandRepository.findById(targetBrandId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target brand not found with id: " + targetBrandId));
+
+        if (group.getBrand() != null && group.getBrand().getId().equals(targetBrandId)) {
+            throw new BadRequestException("Product group is already assigned to target brand");
+        }
+
+        if (productGroupRepository.existsByNameIgnoreCaseAndBrandIdAndIdNot(group.getName(), targetBrandId, groupId)) {
+            throw new ConflictException("A product group named '" + group.getName() + "' already exists in target brand");
+        }
+
+        ProductCategory targetCategory = targetBrand.getCategory();
+
+        group.setBrand(targetBrand);
+        group.setCategory(targetCategory);
+        productGroupRepository.save(group);
+
+        if (targetCategory != null) {
+            productRepository.updateCategoryForProductGroup(targetCategory, groupId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void moveProduct(Long productId, Long targetGroupId) {
+        Product product = productRepository.findByIdAndDeletedAtIsNull(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
+
+        ProductGroup targetGroup = productGroupRepository.findById(targetGroupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target product group not found with id: " + targetGroupId));
+
+        ProductCategory targetCategory = targetGroup.getCategory() != null ? targetGroup.getCategory()
+                : (targetGroup.getBrand() != null ? targetGroup.getBrand().getCategory() : null);
+
+        product.setProductGroup(targetGroup);
+        product.setCategory(targetCategory);
+        productRepository.save(product);
+    }
+
+    @Override
+    @Transactional
+    public BulkMoveProductsResponse bulkMoveProducts(List<Long> productIds, Long targetGroupId) {
+        if (productIds == null || productIds.isEmpty()) {
+            return BulkMoveProductsResponse.builder()
+                    .movedCount(0)
+                    .targetGroupId(targetGroupId)
+                    .message("No products provided for moving")
+                    .build();
+        }
+
+        ProductGroup targetGroup = productGroupRepository.findById(targetGroupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target product group not found with id: " + targetGroupId));
+
+        ProductCategory targetCategory = targetGroup.getCategory() != null ? targetGroup.getCategory()
+                : (targetGroup.getBrand() != null ? targetGroup.getBrand().getCategory() : null);
+
+        List<Product> products = productRepository.findAllByIdInAndDeletedAtIsNull(productIds);
+        long distinctRequestedCount = productIds.stream().distinct().count();
+
+        if (products.size() != distinctRequestedCount) {
+            List<Long> foundIds = products.stream().map(Product::getId).toList();
+            List<Long> missingIds = productIds.stream().filter(id -> !foundIds.contains(id)).distinct().toList();
+            throw new ResourceNotFoundException("Products not found or inactive: " + missingIds);
+        }
+
+        for (Product p : products) {
+            p.setProductGroup(targetGroup);
+            p.setCategory(targetCategory);
+        }
+
+        productRepository.saveAll(products);
+
+        return BulkMoveProductsResponse.builder()
+                .movedCount(products.size())
+                .targetGroupId(targetGroupId)
+                .message(products.size() + " products moved successfully")
+                .build();
     }
 }
