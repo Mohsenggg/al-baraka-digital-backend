@@ -115,6 +115,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductIdResponse updateProduct(Long id, ProductManageSaveRequest request) {
+        return updateProduct(id, request, Boolean.TRUE.equals(request.getPropagateGroupSellingPrice()));
+    }
+
+    @Override
+    public ProductIdResponse updateProduct(Long id, ProductManageSaveRequest request, boolean propagateGroupSellingPrice) {
         Product product = productRepository.findDetailedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         validateManageRequest(id, request);
@@ -144,6 +149,24 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product saved = productRepository.save(product);
+
+        if (propagateGroupSellingPrice && saved.getProductGroup() != null) {
+            ProductBarcode defaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(saved));
+            if (defaultBarcode != null && defaultBarcode.getSellingPrice() != null) {
+                java.math.BigDecimal newSellingPrice = defaultBarcode.getSellingPrice();
+                List<Product> siblingProducts = productRepository.findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(saved.getProductGroup().getId());
+                for (Product sibling : siblingProducts) {
+                    if (!sibling.getId().equals(saved.getId())) {
+                        List<ProductBarcode> siblingBarcodes = productMapper.activeBarcodes(sibling);
+                        for (ProductBarcode sb : siblingBarcodes) {
+                            sb.setSellingPrice(newSellingPrice);
+                        }
+                    }
+                }
+                productRepository.saveAll(siblingProducts);
+            }
+        }
+
         return new ProductIdResponse(saved.getId());
     }
 

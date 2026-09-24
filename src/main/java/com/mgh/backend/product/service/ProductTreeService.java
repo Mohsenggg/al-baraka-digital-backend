@@ -56,4 +56,11 @@ public interface ProductTreeService {
     void moveProduct(Long productId, Long targetGroupId);
 
     BulkMoveProductsResponse bulkMoveProducts(List<Long> productIds, Long targetGroupId);
+
+    // Group Price Unification
+    void setProductGroupPriceUnification(Long groupId, boolean isPriceUnified);
+
+    com.mgh.backend.product.dto.response.GroupPriceSummaryDto getGroupPriceSummary(Long groupId);
+
+    void updateGroupSellingPrice(Long groupId, java.math.BigDecimal newSellingPrice);
 }

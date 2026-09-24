@@ -8,6 +8,7 @@ import com.mgh.backend.product.dto.response.BrandTreeNodeDto;
 import com.mgh.backend.product.dto.response.BulkMoveProductsResponse;
 import com.mgh.backend.product.dto.response.CategoryChildNodesDto;
 import com.mgh.backend.product.dto.response.CategoryTreeNodeDto;
+import com.mgh.backend.product.dto.response.GroupPriceSummaryDto;
 import com.mgh.backend.product.dto.response.ProductGroupTreeNodeDto;
 import com.mgh.backend.product.dto.response.ProductTreeResponseDto;
 import com.mgh.backend.product.dto.response.ProductTreeStatisticsDto;
@@ -18,6 +19,7 @@ import com.mgh.backend.product.entity.ProductBarcode;
 import com.mgh.backend.product.entity.ProductCategory;
 import com.mgh.backend.product.entity.ProductGroup;
 import com.mgh.backend.product.entity.ProductStatus;
+import com.mgh.backend.product.mapper.ProductMapper;
 import com.mgh.backend.product.repository.BrandRepository;
 import com.mgh.backend.product.repository.ProductCategoryRepository;
 import com.mgh.backend.product.repository.ProductGroupRepository;
@@ -47,6 +49,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
     private final BrandRepository brandRepository;
     private final ProductGroupRepository productGroupRepository;
     private final ProductRepository productRepository;
+    private final ProductMapper productMapper;
 
     @Override
     public ProductTreeResponseDto getFullTree(
@@ -121,6 +124,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                     .categoryId(catId)
                     .brandId(bId)
                     .productCount(prods.size())
+                    .isPriceUnified(pg.isPriceUnified())
                     .products(prods)
                     .build();
 
@@ -325,6 +329,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                                 .categoryId(group.getCategoryId())
                                 .brandId(group.getBrandId())
                                 .productCount(matchingProds.size())
+                                .isPriceUnified(group.isPriceUnified())
                                 .products(matchingProds)
                                 .build());
                     }
@@ -361,6 +366,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                                 .categoryId(group.getCategoryId())
                                 .brandId(group.getBrandId())
                                 .productCount(matchingProds.size())
+                                .isPriceUnified(group.isPriceUnified())
                                 .products(matchingProds)
                                 .build());
                     }
@@ -515,6 +521,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                     .categoryId(categoryId)
                     .brandId(b.getId())
                     .productCount(0)
+                    .isPriceUnified(g.isPriceUnified())
                     .build()).collect(Collectors.toList());
 
             return BrandTreeNodeDto.builder()
@@ -534,6 +541,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                 .categoryId(categoryId)
                 .brandId(null)
                 .productCount(0)
+                .isPriceUnified(g.isPriceUnified())
                 .build()).collect(Collectors.toList());
 
         return CategoryChildNodesDto.builder()
@@ -553,6 +561,7 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                 .categoryId(g.getCategory() != null ? g.getCategory().getId() : (g.getBrand() != null && g.getBrand().getCategory() != null ? g.getBrand().getCategory().getId() : null))
                 .brandId(brandId)
                 .productCount(0)
+                .isPriceUnified(g.isPriceUnified())
                 .build()).collect(Collectors.toList());
     }
 
@@ -871,5 +880,66 @@ public class ProductTreeServiceImpl implements ProductTreeService {
                 .targetGroupId(targetGroupId)
                 .message(products.size() + " products moved successfully")
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void setProductGroupPriceUnification(Long groupId, boolean isPriceUnified) {
+        ProductGroup group = productGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product group not found with id: " + groupId));
+        group.setPriceUnified(isPriceUnified);
+        productGroupRepository.save(group);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupPriceSummaryDto getGroupPriceSummary(Long groupId) {
+        ProductGroup group = productGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product group not found with id: " + groupId));
+
+        List<Product> products = productRepository.findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(groupId);
+
+        List<BigDecimal> distinctPrices = products.stream()
+                .map(p -> {
+                    ProductBarcode defaultBarcode = productMapper.findDefaultBarcode(productMapper.activeBarcodes(p));
+                    return defaultBarcode != null ? defaultBarcode.getSellingPrice() : null;
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+
+        boolean hasDiscrepancy = distinctPrices.size() > 1;
+
+        return GroupPriceSummaryDto.builder()
+                .groupId(group.getId())
+                .groupName(group.getName())
+                .isPriceUnified(group.isPriceUnified())
+                .productCount(products.size())
+                .distinctSellingPrices(distinctPrices)
+                .hasPriceDiscrepancy(hasDiscrepancy)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void updateGroupSellingPrice(Long groupId, BigDecimal newSellingPrice) {
+        if (newSellingPrice == null || newSellingPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BadRequestException("Selling price must be positive or zero");
+        }
+
+        ProductGroup group = productGroupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product group not found with id: " + groupId));
+
+        List<Product> products = productRepository.findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(groupId);
+
+        for (Product p : products) {
+            List<ProductBarcode> activeBarcodes = productMapper.activeBarcodes(p);
+            for (ProductBarcode b : activeBarcodes) {
+                b.setSellingPrice(newSellingPrice);
+            }
+        }
+
+        productRepository.saveAll(products);
     }
 }

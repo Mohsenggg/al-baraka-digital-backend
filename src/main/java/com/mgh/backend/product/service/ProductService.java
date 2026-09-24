@@ -22,6 +22,8 @@ public interface ProductService {
 
     ProductIdResponse updateProduct(Long id, @Valid ProductManageSaveRequest request);
 
+    ProductIdResponse updateProduct(Long id, @Valid ProductManageSaveRequest request, boolean propagateGroupSellingPrice);
+
     void deleteProduct(Long id);
 
     // Internal integration

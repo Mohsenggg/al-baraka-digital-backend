@@ -78,9 +78,11 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ProductIdResponse> updateProduct(
             @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean propagateGroupSellingPrice,
             @Valid @RequestBody ProductManageSaveRequest request
     ) {
-        return ResponseEntity.ok(productService.updateProduct(id, request));
+        boolean shouldPropagate = propagateGroupSellingPrice || Boolean.TRUE.equals(request.getPropagateGroupSellingPrice());
+        return ResponseEntity.ok(productService.updateProduct(id, request, shouldPropagate));
     }
 
     @DeleteMapping("/{id}")

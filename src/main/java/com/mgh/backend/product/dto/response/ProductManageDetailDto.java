@@ -23,6 +23,9 @@ public class ProductManageDetailDto {
     private Long categoryId;
     private Long manufacturerId;
     private List<Long> supplierIds;
+    private Long productGroupId;
+    private String productGroupName;
+    private Boolean isPriceUnified;
 
     private Boolean hasConversion;
     private List<ConversionDto> conversions;

@@ -46,6 +46,9 @@ class ProductTreeServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private com.mgh.backend.product.mapper.ProductMapper productMapper;
+
     @InjectMocks
     private ProductTreeServiceImpl productTreeService;
 
@@ -363,6 +366,108 @@ class ProductTreeServiceTest {
             assertEquals(cat2, product1.getCategory());
             assertEquals(group2, product2.getProductGroup());
             assertEquals(cat2, product2.getCategory());
+            verify(productRepository, times(1)).saveAll(anyList());
+        }
+    }
+
+    @Nested
+    @DisplayName("Price Unification Tests")
+    class PriceUnificationTests {
+
+        @Test
+        @DisplayName("setProductGroupPriceUnification: Toggles isPriceUnified successfully without changing prices")
+        void setPriceUnification_Success() {
+            when(productGroupRepository.findById(100L)).thenReturn(Optional.of(group1));
+
+            productTreeService.setProductGroupPriceUnification(100L, true);
+
+            assertTrue(group1.isPriceUnified());
+            verify(productGroupRepository, times(1)).save(group1);
+            verify(productRepository, never()).save(any());
+            verify(productRepository, never()).saveAll(any());
+        }
+
+        @Test
+        @DisplayName("setProductGroupPriceUnification: Throws 404 when group not found")
+        void setPriceUnification_NotFound() {
+            when(productGroupRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThrows(ResourceNotFoundException.class, () ->
+                    productTreeService.setProductGroupPriceUnification(999L, true)
+            );
+        }
+
+        @Test
+        @DisplayName("getGroupPriceSummary: Returns summary with discrepancy detection")
+        void getGroupPriceSummary_WithDiscrepancy() {
+            com.mgh.backend.product.entity.ProductBarcode b1 = com.mgh.backend.product.entity.ProductBarcode.builder()
+                    .id(1L)
+                    .barcode("BAR1")
+                    .sellingPrice(new java.math.BigDecimal("60.00"))
+                    .buyingPrice(new java.math.BigDecimal("50.00"))
+                    .isDefault(true)
+                    .build();
+            product1.setBarcodes(new ArrayList<>(List.of(b1)));
+
+            com.mgh.backend.product.entity.ProductBarcode b2 = com.mgh.backend.product.entity.ProductBarcode.builder()
+                    .id(2L)
+                    .barcode("BAR2")
+                    .sellingPrice(new java.math.BigDecimal("65.00"))
+                    .buyingPrice(new java.math.BigDecimal("52.00"))
+                    .isDefault(true)
+                    .build();
+            product2.setBarcodes(new ArrayList<>(List.of(b2)));
+
+            when(productGroupRepository.findById(100L)).thenReturn(Optional.of(group1));
+            when(productRepository.findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(100L))
+                    .thenReturn(List.of(product1, product2));
+            when(productMapper.activeBarcodes(product1)).thenReturn(List.of(b1));
+            when(productMapper.findDefaultBarcode(List.of(b1))).thenReturn(b1);
+            when(productMapper.activeBarcodes(product2)).thenReturn(List.of(b2));
+            when(productMapper.findDefaultBarcode(List.of(b2))).thenReturn(b2);
+
+            com.mgh.backend.product.dto.response.GroupPriceSummaryDto summary = productTreeService.getGroupPriceSummary(100L);
+
+            assertNotNull(summary);
+            assertEquals(100L, summary.getGroupId());
+            assertEquals(2, summary.getProductCount());
+            assertEquals(2, summary.getDistinctSellingPrices().size());
+            assertTrue(summary.isHasPriceDiscrepancy());
+        }
+
+        @Test
+        @DisplayName("updateGroupSellingPrice: Updates selling price on all barcodes, leaves buying price untouched")
+        void updateGroupSellingPrice_Success() {
+            com.mgh.backend.product.entity.ProductBarcode b1 = com.mgh.backend.product.entity.ProductBarcode.builder()
+                    .id(1L)
+                    .barcode("BAR1")
+                    .sellingPrice(new java.math.BigDecimal("60.00"))
+                    .buyingPrice(new java.math.BigDecimal("50.00"))
+                    .isDefault(true)
+                    .build();
+            product1.setBarcodes(new ArrayList<>(List.of(b1)));
+
+            com.mgh.backend.product.entity.ProductBarcode b2 = com.mgh.backend.product.entity.ProductBarcode.builder()
+                    .id(2L)
+                    .barcode("BAR2")
+                    .sellingPrice(new java.math.BigDecimal("65.00"))
+                    .buyingPrice(new java.math.BigDecimal("52.00"))
+                    .isDefault(true)
+                    .build();
+            product2.setBarcodes(new ArrayList<>(List.of(b2)));
+
+            when(productGroupRepository.findById(100L)).thenReturn(Optional.of(group1));
+            when(productRepository.findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(100L))
+                    .thenReturn(List.of(product1, product2));
+            when(productMapper.activeBarcodes(product1)).thenReturn(List.of(b1));
+            when(productMapper.activeBarcodes(product2)).thenReturn(List.of(b2));
+
+            productTreeService.updateGroupSellingPrice(100L, new java.math.BigDecimal("70.00"));
+
+            assertEquals(new java.math.BigDecimal("70.00"), b1.getSellingPrice());
+            assertEquals(new java.math.BigDecimal("50.00"), b1.getBuyingPrice()); // buying price untouched!
+            assertEquals(new java.math.BigDecimal("70.00"), b2.getSellingPrice());
+            assertEquals(new java.math.BigDecimal("52.00"), b2.getBuyingPrice()); // buying price untouched!
             verify(productRepository, times(1)).saveAll(anyList());
         }
     }

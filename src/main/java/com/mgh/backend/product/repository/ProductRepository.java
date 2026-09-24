@@ -97,6 +97,11 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
            countQuery = "SELECT count(p) FROM Product p WHERE p.productGroup.id = :groupId AND p.deletedAt IS NULL")
     Page<Product> findByProductGroupIdAndDeletedAtIsNull(@Param("groupId") Long groupId, Pageable pageable);
 
+    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.barcodes pb WHERE p.productGroup.id = :groupId AND p.deletedAt IS NULL")
+    List<Product> findAllWithBarcodesByProductGroupIdAndDeletedAtIsNull(@Param("groupId") Long groupId);
+
+    List<Product> findByProductGroupIdAndDeletedAtIsNull(Long groupId);
+
     boolean existsByProductGroupIdAndDeletedAtIsNull(Long productGroupId);
 
     boolean existsByCategoryIdAndDeletedAtIsNull(Long categoryId);

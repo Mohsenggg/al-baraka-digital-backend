@@ -45,6 +45,8 @@ public class ProductManageSaveRequest {
     @Valid
     private List<MaterialInput> materials;
 
+    private Boolean propagateGroupSellingPrice = false;
+
     @Data
     public static class AttributeInput {
         @NotNull

@@ -19,6 +19,7 @@ public class ProductGroupTreeNodeDto {
     private Long categoryId;
     private Long brandId;
     private int productCount;
+    private boolean isPriceUnified;
     @Builder.Default
     private List<TreeProductItemDto> products = new ArrayList<>();
 }

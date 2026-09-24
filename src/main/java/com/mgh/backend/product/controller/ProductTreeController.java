@@ -175,4 +175,37 @@ public class ProductTreeController {
         );
         return ResponseEntity.ok(response);
     }
+
+    // ==========================================
+    // TASK: Group Price Unification Endpoints
+    // ==========================================
+
+    @PatchMapping("/groups/{id}/price-unification")
+    public ResponseEntity<Map<String, Object>> setPriceUnification(
+            @PathVariable Long id,
+            @Valid @RequestBody com.mgh.backend.product.dto.request.SetPriceUnificationRequest request
+    ) {
+        productTreeService.setProductGroupPriceUnification(id, request.getIsPriceUnified());
+        return ResponseEntity.ok(Map.of(
+                "groupId", id,
+                "isPriceUnified", request.getIsPriceUnified(),
+                "message", "Price unification updated successfully"
+        ));
+    }
+
+    @GetMapping("/groups/{id}/price-summary")
+    public ResponseEntity<com.mgh.backend.product.dto.response.GroupPriceSummaryDto> getGroupPriceSummary(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(productTreeService.getGroupPriceSummary(id));
+    }
+
+    @PatchMapping("/groups/{id}/selling-price")
+    public ResponseEntity<Map<String, String>> updateGroupSellingPrice(
+            @PathVariable Long id,
+            @Valid @RequestBody com.mgh.backend.product.dto.request.BulkGroupPriceUpdateRequest request
+    ) {
+        productTreeService.updateGroupSellingPrice(id, request.getSellingPrice());
+        return ResponseEntity.ok(Map.of("message", "Group selling price updated successfully"));
+    }
 }

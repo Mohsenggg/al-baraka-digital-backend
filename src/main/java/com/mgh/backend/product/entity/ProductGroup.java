@@ -48,4 +48,8 @@ public class ProductGroup {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private ProductCategory category;
+
+    @Column(name = "is_price_unified", nullable = false)
+    @Builder.Default
+    private boolean isPriceUnified = false;
 }
