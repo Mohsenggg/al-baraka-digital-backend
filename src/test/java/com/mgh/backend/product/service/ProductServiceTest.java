@@ -46,6 +46,9 @@ class ProductServiceTest {
     private ProductAttributeRepository attributeRepository;
 
     @Mock
+    private ProductGroupRepository productGroupRepository;
+
+    @Mock
     private ProductMapper productMapper;
 
     @InjectMocks
@@ -121,6 +124,7 @@ class ProductServiceTest {
         ProductManageSaveRequest request = new ProductManageSaveRequest();
         request.setBaseName("Ariel Lavender");
         request.setName("Ariel Lavender 1kg");
+        request.setProductGroupId(10L);
 
         ProductManageSaveRequest.BarcodeInput bi = new ProductManageSaveRequest.BarcodeInput();
         bi.setId(101L);
@@ -131,6 +135,8 @@ class ProductServiceTest {
         bi.setDefault(true);
         request.setBarcodes(List.of(bi));
 
+        when(productGroupRepository.existsById(10L)).thenReturn(true);
+        when(productGroupRepository.findById(10L)).thenReturn(Optional.of(group));
         when(productRepository.findDetailedById(1L)).thenReturn(Optional.of(product1));
         when(productRepository.save(product1)).thenReturn(product1);
 
@@ -149,6 +155,7 @@ class ProductServiceTest {
         ProductManageSaveRequest request = new ProductManageSaveRequest();
         request.setBaseName("Ariel Lavender");
         request.setName("Ariel Lavender 1kg");
+        request.setProductGroupId(10L);
 
         ProductManageSaveRequest.BarcodeInput bi = new ProductManageSaveRequest.BarcodeInput();
         bi.setId(101L);
@@ -159,6 +166,8 @@ class ProductServiceTest {
         bi.setDefault(true);
         request.setBarcodes(List.of(bi));
 
+        when(productGroupRepository.existsById(10L)).thenReturn(true);
+        when(productGroupRepository.findById(10L)).thenReturn(Optional.of(group));
         when(productRepository.findDetailedById(1L)).thenReturn(Optional.of(product1));
         when(productRepository.save(product1)).thenReturn(product1);
 

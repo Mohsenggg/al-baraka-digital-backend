@@ -33,6 +33,7 @@ public class ProductManageSaveRequest {
 
     private Long categoryId;
     private Long manufacturerId;
+    private Long productGroupId;
     private List<Long> supplierIds;
 
     private Boolean hasConversion = false;

@@ -27,6 +27,7 @@ import com.mgh.backend.product.repository.ManufacturerRepository;
 import com.mgh.backend.product.repository.ProductAttributeRepository;
 import com.mgh.backend.product.repository.ProductBarcodeRepository;
 import com.mgh.backend.product.repository.ProductCategoryRepository;
+import com.mgh.backend.product.repository.ProductGroupRepository;
 import com.mgh.backend.product.repository.ProductRepository;
 import com.mgh.backend.product.repository.SupplierRepository;
 import com.mgh.backend.product.service.ProductService;
@@ -60,6 +61,7 @@ public class ProductServiceImpl implements ProductService {
     private final ManufacturerRepository manufacturerRepository;
     private final SupplierRepository supplierRepository;
     private final ProductAttributeRepository attributeRepository;
+    private final ProductGroupRepository productGroupRepository;
     private final ProductMapper productMapper;
 
     @Override
@@ -498,6 +500,9 @@ public class ProductServiceImpl implements ProductService {
         if (request.getCategoryId() != null && !categoryRepository.existsById(request.getCategoryId())) {
             throw new ResourceNotFoundException("Category not found: " + request.getCategoryId());
         }
+        if (request.getProductGroupId() != null && !productGroupRepository.existsById(request.getProductGroupId())) {
+            throw new ResourceNotFoundException("Product group not found: " + request.getProductGroupId());
+        }
         if (request.getManufacturerId() != null && !manufacturerRepository.existsById(request.getManufacturerId())) {
             throw new ResourceNotFoundException("Manufacturer not found: " + request.getManufacturerId());
         }
@@ -554,6 +559,18 @@ public class ProductServiceImpl implements ProductService {
         product.setManufacturer(request.getManufacturerId() != null
                 ? manufacturerRepository.findById(request.getManufacturerId()).orElse(null)
                 : null);
+        product.setProductGroup(request.getProductGroupId() != null
+                ? productGroupRepository.findById(request.getProductGroupId()).orElse(null)
+                : null);
+
+        if (product.getProductGroup() != null && product.getCategory() == null) {
+            com.mgh.backend.product.entity.ProductGroup pg = product.getProductGroup();
+            if (pg.getCategory() != null) {
+                product.setCategory(pg.getCategory());
+            } else if (pg.getBrand() != null && pg.getBrand().getCategory() != null) {
+                product.setCategory(pg.getBrand().getCategory());
+            }
+        }
     }
 
     private List<ProductBarcode> buildBarcodes(Product product, List<ProductManageSaveRequest.BarcodeInput> inputs) {
