@@ -12,5 +12,6 @@ public class ProductSearchFilter {
     private Long categoryId;
     private Long manufacturerId;
     private Long supplierId;
+    private Long productGroupId;
     private ProductStatus status;
 }

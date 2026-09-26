@@ -43,6 +43,10 @@ public class ProductSpecification {
                 predicates.add(cb.equal(root.join("suppliers", JoinType.INNER).get("id"), filter.getSupplierId()));
             }
 
+            if (filter.getProductGroupId() != null) {
+                predicates.add(cb.equal(root.get("productGroup").get("id"), filter.getProductGroupId()));
+            }
+
             if (filter.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), filter.getStatus()));
             }

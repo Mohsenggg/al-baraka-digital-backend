@@ -47,6 +47,7 @@ public class ProductController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long manufacturerId,
             @RequestParam(required = false) Long supplierId,
+            @RequestParam(required = false) Long productGroupId,
             @RequestParam(required = false) ProductStatus status,
             @PageableDefault(page = 0, size = 100, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
@@ -55,6 +56,7 @@ public class ProductController {
         filter.setCategoryId(categoryId);
         filter.setManufacturerId(manufacturerId);
         filter.setSupplierId(supplierId);
+        filter.setProductGroupId(productGroupId);
         filter.setStatus(status);
 
         return ResponseEntity.ok(productService.listProducts(filter, pageable));
