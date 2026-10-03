@@ -18,4 +18,5 @@ public class ProductGroupHierarchyRequest {
     @NotNull(message = "categoryId is required")
     private Long categoryId;
     private Long brandId;
+    private Boolean isPriceUnified;
 }

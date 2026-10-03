@@ -942,4 +942,159 @@ public class ProductTreeServiceImpl implements ProductTreeService {
 
         productRepository.saveAll(products);
     }
+
+    // ==========================================
+    // TASK: Node Creation
+    // ==========================================
+
+    @Override
+    @Transactional
+    public CategoryTreeNodeDto createCategory(String name, String code) {
+        String trimmedName = name != null ? name.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Category name must be between 2 and 255 characters");
+        }
+
+        if (categoryRepository.findByNameIgnoreCase(trimmedName).isPresent()) {
+            throw new ConflictException("Category with name '" + trimmedName + "' already exists");
+        }
+
+        String assignedCode = (code != null && !code.trim().isEmpty())
+                ? code.trim()
+                : "CAT-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        ProductCategory saved = categoryRepository.save(ProductCategory.builder()
+                .name(trimmedName)
+                .code(assignedCode)
+                .build());
+
+        return CategoryTreeNodeDto.builder()
+                .id(saved.getId())
+                .name(saved.getName())
+                .code(saved.getCode())
+                .brandCount(0)
+                .groupCount(0)
+                .productCount(0)
+                .brands(new ArrayList<>())
+                .directGroups(new ArrayList<>())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public BrandTreeNodeDto createBrand(String name, String code, Long categoryId) {
+        if (categoryId == null) {
+            throw new BadRequestException("categoryId is required to create a brand");
+        }
+
+        ProductCategory category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+
+        String trimmedName = name != null ? name.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Brand name must be between 2 and 255 characters");
+        }
+
+        if (brandRepository.existsByNameIgnoreCaseAndCategoryId(trimmedName, categoryId)) {
+            throw new ConflictException("Brand with name '" + trimmedName + "' already exists in this category");
+        }
+
+        String assignedCode = (code != null && !code.trim().isEmpty())
+                ? code.trim()
+                : "BR-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        Brand saved = brandRepository.save(Brand.builder()
+                .name(trimmedName)
+                .code(assignedCode)
+                .category(category)
+                .build());
+
+        return BrandTreeNodeDto.builder()
+                .id(saved.getId())
+                .name(saved.getName())
+                .code(saved.getCode())
+                .categoryId(category.getId())
+                .groupCount(0)
+                .productCount(0)
+                .groups(new ArrayList<>())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ProductGroupTreeNodeDto createProductGroup(String name, String code, Long categoryId, Long brandId, Boolean isPriceUnified) {
+        String trimmedName = name != null ? name.trim() : "";
+        if (trimmedName.length() < 2 || trimmedName.length() > 255) {
+            throw new BadRequestException("Product group name must be between 2 and 255 characters");
+        }
+
+        String assignedCode = (code != null && !code.trim().isEmpty())
+                ? code.trim()
+                : "PG-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        boolean unified = Boolean.TRUE.equals(isPriceUnified);
+
+        if (brandId != null && brandId > 0) {
+            Brand brand = brandRepository.findById(brandId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Brand not found with id: " + brandId));
+
+            ProductCategory category = brand.getCategory();
+            if (category == null && categoryId != null) {
+                category = categoryRepository.findById(categoryId).orElse(null);
+            }
+
+            if (productGroupRepository.existsByNameIgnoreCaseAndBrandId(trimmedName, brandId)) {
+                throw new ConflictException("Product group with name '" + trimmedName + "' already exists in this brand");
+            }
+
+            ProductGroup saved = productGroupRepository.save(ProductGroup.builder()
+                    .name(trimmedName)
+                    .code(assignedCode)
+                    .brand(brand)
+                    .category(category)
+                    .isPriceUnified(unified)
+                    .build());
+
+            return ProductGroupTreeNodeDto.builder()
+                    .id(saved.getId())
+                    .name(saved.getName())
+                    .code(saved.getCode())
+                    .brandId(brand.getId())
+                    .categoryId(category != null ? category.getId() : null)
+                    .isPriceUnified(saved.isPriceUnified())
+                    .productCount(0)
+                    .products(new ArrayList<>())
+                    .build();
+        } else {
+            if (categoryId == null) {
+                throw new BadRequestException("categoryId is required when brand is not specified");
+            }
+
+            ProductCategory category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + categoryId));
+
+            if (productGroupRepository.existsByNameIgnoreCaseAndCategoryIdAndBrandIsNull(trimmedName, categoryId)) {
+                throw new ConflictException("Product group with name '" + trimmedName + "' already exists in this category");
+            }
+
+            ProductGroup saved = productGroupRepository.save(ProductGroup.builder()
+                    .name(trimmedName)
+                    .code(assignedCode)
+                    .brand(null)
+                    .category(category)
+                    .isPriceUnified(unified)
+                    .build());
+
+            return ProductGroupTreeNodeDto.builder()
+                    .id(saved.getId())
+                    .name(saved.getName())
+                    .code(saved.getCode())
+                    .brandId(null)
+                    .categoryId(category.getId())
+                    .isPriceUnified(saved.isPriceUnified())
+                    .productCount(0)
+                    .products(new ArrayList<>())
+                    .build();
+        }
+    }
 }

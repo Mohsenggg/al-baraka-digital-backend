@@ -63,4 +63,11 @@ public interface ProductTreeService {
     com.mgh.backend.product.dto.response.GroupPriceSummaryDto getGroupPriceSummary(Long groupId);
 
     void updateGroupSellingPrice(Long groupId, java.math.BigDecimal newSellingPrice);
+
+    // Node Creation
+    CategoryTreeNodeDto createCategory(String name, String code);
+
+    com.mgh.backend.product.dto.response.BrandTreeNodeDto createBrand(String name, String code, Long categoryId);
+
+    ProductGroupTreeNodeDto createProductGroup(String name, String code, Long categoryId, Long brandId, Boolean isPriceUnified);
 }

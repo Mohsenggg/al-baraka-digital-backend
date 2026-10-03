@@ -471,4 +471,117 @@ class ProductTreeServiceTest {
             verify(productRepository, times(1)).saveAll(anyList());
         }
     }
+
+    @Nested
+    @DisplayName("Node Creation Tests")
+    class TaskNodeCreationTests {
+
+        @Test
+        @DisplayName("createCategory: Fails when name is blank or invalid length")
+        void createCategory_InvalidName() {
+            assertThrows(BadRequestException.class, () -> productTreeService.createCategory(" ", null));
+            assertThrows(BadRequestException.class, () -> productTreeService.createCategory("A", null));
+        }
+
+        @Test
+        @DisplayName("createCategory: Fails when duplicate category name exists")
+        void createCategory_DuplicateName() {
+            when(categoryRepository.findByNameIgnoreCase("Category 1")).thenReturn(Optional.of(cat1));
+            assertThrows(ConflictException.class, () -> productTreeService.createCategory("Category 1", null));
+        }
+
+        @Test
+        @DisplayName("createCategory: Successfully creates category")
+        void createCategory_Success() {
+            when(categoryRepository.findByNameIgnoreCase("New Category")).thenReturn(Optional.empty());
+            when(categoryRepository.save(any(ProductCategory.class))).thenAnswer(inv -> {
+                ProductCategory c = inv.getArgument(0);
+                c.setId(99L);
+                return c;
+            });
+
+            var result = productTreeService.createCategory("New Category", "CAT-99");
+            assertNotNull(result);
+            assertEquals(99L, result.getId());
+            assertEquals("New Category", result.getName());
+            assertEquals("CAT-99", result.getCode());
+            verify(categoryRepository, times(1)).save(any(ProductCategory.class));
+        }
+
+        @Test
+        @DisplayName("createBrand: Fails when categoryId missing or category not found")
+        void createBrand_CategoryNotFound() {
+            assertThrows(BadRequestException.class, () -> productTreeService.createBrand("Brand", null, null));
+            when(categoryRepository.findById(999L)).thenReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> productTreeService.createBrand("Brand", null, 999L));
+        }
+
+        @Test
+        @DisplayName("createBrand: Fails when duplicate brand name in same category")
+        void createBrand_Duplicate() {
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(cat1));
+            when(brandRepository.existsByNameIgnoreCaseAndCategoryId("Brand 1", 1L)).thenReturn(true);
+            assertThrows(ConflictException.class, () -> productTreeService.createBrand("Brand 1", null, 1L));
+        }
+
+        @Test
+        @DisplayName("createBrand: Successfully creates brand under category")
+        void createBrand_Success() {
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(cat1));
+            when(brandRepository.existsByNameIgnoreCaseAndCategoryId("Brand New", 1L)).thenReturn(false);
+            when(brandRepository.save(any(Brand.class))).thenAnswer(inv -> {
+                Brand b = inv.getArgument(0);
+                b.setId(88L);
+                return b;
+            });
+
+            var result = productTreeService.createBrand("Brand New", "BR-88", 1L);
+            assertNotNull(result);
+            assertEquals(88L, result.getId());
+            assertEquals("Brand New", result.getName());
+            assertEquals(1L, result.getCategoryId());
+            verify(brandRepository, times(1)).save(any(Brand.class));
+        }
+
+        @Test
+        @DisplayName("createProductGroup: Successfully creates group under brand")
+        void createProductGroup_UnderBrand_Success() {
+            when(brandRepository.findById(10L)).thenReturn(Optional.of(brand1));
+            when(productGroupRepository.existsByNameIgnoreCaseAndBrandId("Group New", 10L)).thenReturn(false);
+            when(productGroupRepository.save(any(ProductGroup.class))).thenAnswer(inv -> {
+                ProductGroup g = inv.getArgument(0);
+                g.setId(77L);
+                return g;
+            });
+
+            var result = productTreeService.createProductGroup("Group New", "PG-77", 1L, 10L, true);
+            assertNotNull(result);
+            assertEquals(77L, result.getId());
+            assertEquals("Group New", result.getName());
+            assertEquals(10L, result.getBrandId());
+            assertTrue(result.isPriceUnified());
+            verify(productGroupRepository, times(1)).save(any(ProductGroup.class));
+        }
+
+        @Test
+        @DisplayName("createProductGroup: Successfully creates direct group under category")
+        void createProductGroup_DirectUnderCategory_Success() {
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(cat1));
+            when(productGroupRepository.existsByNameIgnoreCaseAndCategoryIdAndBrandIsNull("Direct Group New", 1L)).thenReturn(false);
+            when(productGroupRepository.save(any(ProductGroup.class))).thenAnswer(inv -> {
+                ProductGroup g = inv.getArgument(0);
+                g.setId(66L);
+                return g;
+            });
+
+            var result = productTreeService.createProductGroup("Direct Group New", null, 1L, null, false);
+            assertNotNull(result);
+            assertEquals(66L, result.getId());
+            assertEquals("Direct Group New", result.getName());
+            assertNull(result.getBrandId());
+            assertEquals(1L, result.getCategoryId());
+            assertFalse(result.isPriceUnified());
+            verify(productGroupRepository, times(1)).save(any(ProductGroup.class));
+        }
+    }
 }
