@@ -33,6 +33,7 @@ import java.util.List;
         name = "cashier_products",
         indexes = {
                 @Index(name = "idx_products_barcode", columnList = "barcode"),
+                @Index(name = "idx_products_legacy_code", columnList = "legacy_code"),
                 @Index(name = "idx_products_name", columnList = "name"),
                 @Index(name = "idx_products_status", columnList = "status"),
                 @Index(name = "idx_products_created_at", columnList = "created_at")
@@ -51,6 +52,9 @@ public class Product {
 
     @Column(nullable = false, unique = true, length = 100)
     private String barcode;
+
+    @Column(name = "legacy_code", length = 100)
+    private String legacyCode;
 
     @Column(name = "base_name", nullable = false, length = 255)
     private String baseName;

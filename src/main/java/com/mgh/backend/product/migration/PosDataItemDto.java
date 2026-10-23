@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 @Data
 public class PosDataItemDto {
 
+    @JsonProperty("ID")
+    private Long id;
+
     @JsonProperty("ItemCode")
     private String itemCode;
 

@@ -26,6 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     Optional<Product> findByBarcodeAndDeletedAtIsNull(String barcode);
 
+    Optional<Product> findByLegacyCodeAndDeletedAtIsNull(String legacyCode);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.barcode = :barcode AND p.deletedAt IS NULL")
     Optional<Product> findWithLockByBarcode(@Param("barcode") String barcode);
