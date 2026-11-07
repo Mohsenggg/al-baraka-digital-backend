@@ -3,10 +3,20 @@ package com.mgh.backend.cashier.printing.renderer;
 import com.mgh.backend.cashier.printing.model.ReceiptDocument;
 import com.mgh.backend.cashier.printing.model.ReceiptElement;
 import com.mgh.backend.cashier.printing.model.elements.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ReceiptHtmlRenderer {
+
+    private final int paperWidthMm;
+
+    public ReceiptHtmlRenderer(@Value("${app.printer.paper-width-mm:58}") int paperWidthMm) {
+        if (paperWidthMm != 58 && paperWidthMm != 80) {
+            throw new IllegalArgumentException("Printer paper width must be 58 or 80 mm");
+        }
+        this.paperWidthMm = paperWidthMm;
+    }
 
     public String render(ReceiptDocument doc) {
         StringBuilder sb = new StringBuilder();
@@ -16,10 +26,10 @@ public class ReceiptHtmlRenderer {
         sb.append("<head>\n");
         sb.append("<meta charset=\"UTF-8\">\n");
         sb.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
-        sb.append("<title>معاينة الفاتورة - 80mm</title>\n");
+        sb.append("<title>معاينة الفاتورة - ").append(paperWidthMm).append("mm</title>\n");
         sb.append("<style>\n");
         sb.append("  @page {\n");
-        sb.append("    size: 80mm auto;\n");
+        sb.append("    size: ").append(paperWidthMm).append("mm auto;\n");
         sb.append("    margin: 0;\n");
         sb.append("  }\n");
         sb.append("  * {\n");
@@ -62,9 +72,9 @@ public class ReceiptHtmlRenderer {
         sb.append("    background-color: #1e293b;\n");
         sb.append("  }\n");
         sb.append("  .receipt-paper {\n");
-        sb.append("    width: 80mm;\n");
-        sb.append("    max-width: 80mm;\n");
-        sb.append("    min-width: 80mm;\n");
+        sb.append("    width: ").append(paperWidthMm).append("mm;\n");
+        sb.append("    max-width: ").append(paperWidthMm).append("mm;\n");
+        sb.append("    min-width: ").append(paperWidthMm).append("mm;\n");
         sb.append("    background: #ffffff;\n");
         sb.append("    padding: 12px 14px;\n");
         sb.append("    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);\n");

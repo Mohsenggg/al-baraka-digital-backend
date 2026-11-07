@@ -4,6 +4,7 @@ import com.mgh.backend.cashier.entity.Receipt;
 import com.mgh.backend.cashier.printing.builder.ReceiptDocumentBuilder;
 import com.mgh.backend.cashier.printing.model.ReceiptDocument;
 import com.mgh.backend.cashier.printing.model.ReceiptLayoutConfig;
+import com.mgh.backend.cashier.printing.renderer.ReceiptEscPosRenderer;
 import com.mgh.backend.cashier.printing.renderer.ReceiptHtmlRenderer;
 import com.mgh.backend.cashier.printing.service.UsbPrinterService;
 import com.mgh.backend.cashier.repository.ReceiptRepository;
@@ -24,6 +25,7 @@ public class ReceiptPrintController {
 
     private final ReceiptRepository receiptRepository;
     private final ReceiptDocumentBuilder documentBuilder;
+    private final ReceiptEscPosRenderer escPosRenderer;
     private final ReceiptHtmlRenderer htmlRenderer;
 
     private final UsbPrinterService usbPrinterService;
@@ -56,7 +58,7 @@ public class ReceiptPrintController {
 
         try {
             log.info("Attempting to print to printer: {}", printerName);
-            byte[] escPosData = new com.mgh.backend.cashier.printing.renderer.ReceiptEscPosRenderer().render(document);
+            byte[] escPosData = escPosRenderer.render(document);
             usbPrinterService.printReceipt(escPosData, printerName);
             log.info("Print job submitted successfully for receipt ID: {}", id);
             return ResponseEntity.ok().build();
