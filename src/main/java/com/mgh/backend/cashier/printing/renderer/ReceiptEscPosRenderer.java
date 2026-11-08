@@ -29,7 +29,7 @@ public class ReceiptEscPosRenderer {
 
     private final int paperWidthDots;
 
-    public ReceiptEscPosRenderer(@Value("${app.printer.paper-width-mm:58}") int paperWidthMm) {
+    public ReceiptEscPosRenderer(@Value("${app.printer.paper-width-mm:80}") int paperWidthMm) {
         this.paperWidthDots = switch (paperWidthMm) {
             case 58 -> 384;
             case 80 -> 576;

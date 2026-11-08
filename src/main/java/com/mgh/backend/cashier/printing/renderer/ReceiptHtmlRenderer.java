@@ -11,7 +11,7 @@ public class ReceiptHtmlRenderer {
 
     private final int paperWidthMm;
 
-    public ReceiptHtmlRenderer(@Value("${app.printer.paper-width-mm:58}") int paperWidthMm) {
+    public ReceiptHtmlRenderer(@Value("${app.printer.paper-width-mm:80}") int paperWidthMm) {
         if (paperWidthMm != 58 && paperWidthMm != 80) {
             throw new IllegalArgumentException("Printer paper width must be 58 or 80 mm");
         }
