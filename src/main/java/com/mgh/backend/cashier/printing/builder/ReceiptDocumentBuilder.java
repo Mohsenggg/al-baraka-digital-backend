@@ -31,12 +31,14 @@ public class ReceiptDocumentBuilder {
         Cashier cashier = receipt.getCashier();
         String userStr = "";
         String sellerStr = "";
+        String cashierFullName = "";
         if (config.isShowCashier() && cashier != null) {
-            String fullName = cashier.getFullName() != null ? cashier.getFullName() : "";
+            String fullName = cashier.getFullName() != null ? cashier.getFullName().trim() : "";
             userStr = cashier.getId() != null ? cashier.getId() + " - " + fullName : fullName;
             sellerStr = cashier.getUsername() != null && !cashier.getUsername().isBlank()
                     ? cashier.getUsername()
                     : fullName;
+            cashierFullName = !fullName.isBlank() ? fullName : sellerStr;
         }
 
         String dateStr = "";
@@ -53,6 +55,7 @@ public class ReceiptDocumentBuilder {
                 .address("شارع الكيلانى")
                 .user(userStr)
                 .seller(sellerStr)
+                .cashierName(cashierFullName)
                 .receiptNumber(receipt.getReceiptNumber() != null ? receipt.getReceiptNumber() : "")
                 .date(dateStr)
                 .time(timeStr)
