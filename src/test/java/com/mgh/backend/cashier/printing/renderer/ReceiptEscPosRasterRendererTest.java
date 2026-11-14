@@ -174,7 +174,8 @@ class ReceiptEscPosRasterRendererTest {
                             + maxConsecutiveWhiteCols);
         }
 
-        // Verify vertical blank padding between Header and Item section around the dashed divider (y=122..131 and y=144..151)
+        // Verify vertical blank padding between Header and Item section around the
+        // dashed divider (y=122..131 and y=144..151)
         for (int y = 122; y < 132; y++) {
             for (int x = 0; x < 576; x++) {
                 assertEquals(0xFFFFFF, image.getRGB(x, y) & 0xFFFFFF,

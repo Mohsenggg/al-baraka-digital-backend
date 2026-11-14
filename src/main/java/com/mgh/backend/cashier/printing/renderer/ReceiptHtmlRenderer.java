@@ -340,7 +340,8 @@ public class ReceiptHtmlRenderer {
         for (ReceiptElement el : doc.getElements()) {
             if (el instanceof HeaderElement header) {
                 if (header.getStoreName() != null && !header.getStoreName().isBlank()) {
-                    sb.append("<div class=\"store-title\">").append(escapeHtml(header.getStoreName())).append("</div>\n");
+                    sb.append("<div class=\"store-title\">").append(escapeHtml(header.getStoreName()))
+                            .append("</div>\n");
                 }
 
                 String branchStr = escapeHtml(header.getBranch() != null ? header.getBranch() : "");
@@ -350,26 +351,38 @@ public class ReceiptHtmlRenderer {
                 String receiptNumStr = escapeHtml(header.getReceiptNumber() != null ? header.getReceiptNumber() : "");
                 String dateTimeStr = escapeHtml(
                         (header.getDate() != null ? header.getDate() : "") +
-                        (header.getTime() != null && !header.getTime().isBlank() ? " " + header.getTime() : "")
-                );
+                                (header.getTime() != null && !header.getTime().isBlank() ? " " + header.getTime()
+                                        : ""));
 
                 sb.append("<div class=\"receipt-header-grid\">\n");
                 // Row 1: Left: Branch name | Right: Branch phone number
                 sb.append("  <div class=\"header-row\">\n");
-                sb.append("    <div class=\"header-cell col-right\"><span class=\"meta-label\">الهاتف:</span> <span class=\"meta-val ltr-val\">").append(phoneStr).append("</span></div>\n");
-                sb.append("    <div class=\"header-cell col-left\"><span class=\"meta-label\">الفرع:</span> <span class=\"meta-val\">").append(branchStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-right\"><span class=\"meta-label\">الهاتف:</span> <span class=\"meta-val ltr-val\">")
+                        .append(phoneStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-left\"><span class=\"meta-label\">الفرع:</span> <span class=\"meta-val\">")
+                        .append(branchStr).append("</span></div>\n");
                 sb.append("  </div>\n");
 
                 // Row 2: Left: Branch address | Right: Cashier name
                 sb.append("  <div class=\"header-row\">\n");
-                sb.append("    <div class=\"header-cell col-right\"><span class=\"meta-label\">الكاشير:</span> <span class=\"meta-val\">").append(cashierStr).append("</span></div>\n");
-                sb.append("    <div class=\"header-cell col-left\"><span class=\"meta-label\">العنوان:</span> <span class=\"meta-val\">").append(addressStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-right\"><span class=\"meta-label\">الكاشير:</span> <span class=\"meta-val\">")
+                        .append(cashierStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-left\"><span class=\"meta-label\">العنوان:</span> <span class=\"meta-val\">")
+                        .append(addressStr).append("</span></div>\n");
                 sb.append("  </div>\n");
 
                 // Row 3: Left: Receipt number | Right: Receipt date and time
                 sb.append("  <div class=\"header-row\">\n");
-                sb.append("    <div class=\"header-cell col-right\"><span class=\"meta-label\">التاريخ:</span> <span class=\"meta-val ltr-val\">").append(dateTimeStr).append("</span></div>\n");
-                sb.append("    <div class=\"header-cell col-left\"><span class=\"meta-label\">رقم الفاتورة:</span> <span class=\"meta-val ltr-val\">").append(receiptNumStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-right\"><span class=\"meta-label\">التاريخ:</span> <span class=\"meta-val ltr-val\">")
+                        .append(dateTimeStr).append("</span></div>\n");
+                sb.append(
+                        "    <div class=\"header-cell col-left\"><span class=\"meta-label\">رقم الفاتورة:</span> <span class=\"meta-val ltr-val\">")
+                        .append(receiptNumStr).append("</span></div>\n");
                 sb.append("  </div>\n");
                 sb.append("</div>\n");
 
@@ -403,8 +416,10 @@ public class ReceiptHtmlRenderer {
                 // Total pieces line: إجمالي قطع : [count] [amount]
                 sb.append("<div class=\"total-pieces-line\">\n");
                 sb.append("  <span class=\"label-part\">إجمالي قطع :</span>\n");
-                sb.append("  <span class=\"qty-part\">").append(escapeHtml(totals.getTotalItemsCount())).append("</span>\n");
-                sb.append("  <span class=\"amt-part\">").append(escapeHtml(totals.getTotalItemsAmount())).append("</span>\n");
+                sb.append("  <span class=\"qty-part\">").append(escapeHtml(totals.getTotalItemsCount()))
+                        .append("</span>\n");
+                sb.append("  <span class=\"amt-part\">").append(escapeHtml(totals.getTotalItemsAmount()))
+                        .append("</span>\n");
                 sb.append("</div>\n");
 
                 sb.append("<hr class=\"double-divider\"/>\n");
@@ -415,7 +430,8 @@ public class ReceiptHtmlRenderer {
                 // Net invoice (Final Total - Strong Visual Emphasis)
                 sb.append("<div class=\"final-total-box\">\n");
                 sb.append("  <span class=\"final-label\">صافى الفاتورة :</span>\n");
-                sb.append("  <span class=\"final-value\">").append(escapeHtml(totals.getNetTotal())).append("</span>\n");
+                sb.append("  <span class=\"final-value\">").append(escapeHtml(totals.getNetTotal()))
+                        .append("</span>\n");
                 sb.append("</div>\n");
 
                 // Paid amount
@@ -460,25 +476,27 @@ public class ReceiptHtmlRenderer {
     }
 
     private String escapeHtml(String text) {
-        if (text == null) return "";
+        if (text == null)
+            return "";
         return text.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&#39;");
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     private String generateBarcodeSvg(String code) {
-        if (code == null || code.isBlank()) return "";
+        if (code == null || code.isBlank())
+            return "";
         int quietZone = 8;
         int x = quietZone;
         int seed = Math.abs(code.hashCode());
         List<int[]> bars = new ArrayList<>();
 
         // Start guard bars
-        bars.add(new int[]{x, 2});
+        bars.add(new int[] { x, 2 });
         x += 3;
-        bars.add(new int[]{x, 1});
+        bars.add(new int[] { x, 1 });
         x += 3;
 
         for (int i = 0; i < code.length(); i++) {
@@ -489,24 +507,26 @@ public class ReceiptHtmlRenderer {
             int barWidth2 = (pattern > 8) ? 2 : 1;
             int spaceWidth2 = (pattern > 4) ? 2 : 1;
 
-            bars.add(new int[]{x, barWidth1});
+            bars.add(new int[] { x, barWidth1 });
             x += barWidth1 + spaceWidth1;
-            bars.add(new int[]{x, barWidth2});
+            bars.add(new int[] { x, barWidth2 });
             x += barWidth2 + spaceWidth2;
         }
 
         // Stop guard bars
-        bars.add(new int[]{x, 2});
+        bars.add(new int[] { x, 2 });
         x += 3;
-        bars.add(new int[]{x, 1});
+        bars.add(new int[] { x, 1 });
         x += 1;
 
         int totalWidth = x + quietZone;
         StringBuilder svg = new StringBuilder();
-        svg.append("<svg class=\"barcode-svg\" viewBox=\"0 0 ").append(totalWidth).append(" 24\" xmlns=\"http://www.w3.org/2000/svg\">\n");
+        svg.append("<svg class=\"barcode-svg\" viewBox=\"0 0 ").append(totalWidth)
+                .append(" 24\" xmlns=\"http://www.w3.org/2000/svg\">\n");
         svg.append("  <rect width=\"").append(totalWidth).append("\" height=\"24\" fill=\"#ffffff\"/>\n");
         for (int[] bar : bars) {
-            svg.append("  <rect x=\"").append(bar[0]).append("\" y=\"0\" width=\"").append(bar[1]).append("\" height=\"24\" fill=\"#000000\"/>\n");
+            svg.append("  <rect x=\"").append(bar[0]).append("\" y=\"0\" width=\"").append(bar[1])
+                    .append("\" height=\"24\" fill=\"#000000\"/>\n");
         }
         svg.append("</svg>\n");
         return svg.toString();
