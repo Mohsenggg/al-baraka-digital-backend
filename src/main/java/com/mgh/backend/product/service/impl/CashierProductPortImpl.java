@@ -36,6 +36,18 @@ public class CashierProductPortImpl implements CashierProductPort {
     }
 
     @Override
+    public CashierSaleProduct getProductSnapshot(String productCode) {
+        ProductDto product = productService.getByBarcode(productCode);
+        return new CashierSaleProduct(
+                product.getBarcode(),
+                product.getName(),
+                product.getSellingPrice(),
+                product.getBuyingPrice(),
+                product.getStock() != null ? product.getStock() : 0.0
+        );
+    }
+
+    @Override
     public com.mgh.backend.cashier.dto.RefillValidateResponse validateRefill(com.mgh.backend.cashier.dto.RefillValidateRequest request) {
         return productService.validateRefill(request);
     }

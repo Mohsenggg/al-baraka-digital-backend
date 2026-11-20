@@ -18,6 +18,18 @@ public interface ReceiptService {
 
     ReceiptResponseDto draftReceipt(Long id);
 
+    ReceiptResponseDto createTemporaryReceipt(@Valid ReceiptRequestDto request);
+
+    ReceiptResponseDto updateTemporaryReceipt(Long id, @Valid ReceiptRequestDto request);
+
+    ReceiptResponseDto completeTemporaryReceipt(Long id, @Valid ReceiptRequestDto request);
+
+    DeleteReceiptResponseDto deleteTemporaryReceipt(Long id);
+
+    List<ReceiptListItemDto> getTemporaryReceipts();
+
+    long getTemporaryReceiptsCount();
+
     ReceiptResponseDto getReceipt(Long id);
 
     List<ReceiptResponseDto> getReceipts();

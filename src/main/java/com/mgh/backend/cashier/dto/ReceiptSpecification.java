@@ -3,6 +3,7 @@ package com.mgh.backend.cashier.dto;
 
 import com.mgh.backend.cashier.dto.ReceiptSearchFilter;
 import com.mgh.backend.cashier.entity.Receipt;
+import com.mgh.backend.cashier.entity.ReceiptStatus;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -78,6 +79,8 @@ public class ReceiptSpecification {
 
             if (filter.getStatus() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("status"), filter.getStatus()));
+            } else {
+                predicates.add(criteriaBuilder.equal(root.get("status"), ReceiptStatus.SAVED));
             }
 
             if (filter.getPaymentMethod() != null) {

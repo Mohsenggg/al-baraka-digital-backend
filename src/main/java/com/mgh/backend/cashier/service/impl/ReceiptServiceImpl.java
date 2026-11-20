@@ -67,7 +67,7 @@ public class ReceiptServiceImpl implements ReceiptService {
 
     @Override
     public ReceiptResponseDto updateReceipt(Long id, ReceiptRequestDto request) {
-        Receipt receipt = receiptRepository.findActiveById(id)
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
 
         if (receipt.getStatus() == ReceiptStatus.DELETED) {
@@ -91,11 +91,24 @@ public class ReceiptServiceImpl implements ReceiptService {
         receipt.setTax(request.getTax());
         receipt.setDiscount(request.getDiscount());
 
-        receipt.getItems().clear();
-        List<ReceiptItem> newItems = request.getItems().stream()
-                .map(itemReq -> buildItemAndDeductStock(itemReq, receipt))
-                .collect(Collectors.toList());
-        receipt.getItems().addAll(newItems);
+        Map<String, ReceiptItem> existingItemsByBarcode = receipt.getItems().stream()
+                .collect(Collectors.toMap(ReceiptItem::getProductCode, item -> item, (e, r) -> e));
+
+        Set<String> requestedBarcodes = request.getItems().stream()
+                .map(ReceiptItemRequest::getProductCode)
+                .collect(Collectors.toSet());
+
+        receipt.getItems().removeIf(item -> !requestedBarcodes.contains(item.getProductCode()));
+
+        for (ReceiptItemRequest itemReq : request.getItems()) {
+            ReceiptItem existingItem = existingItemsByBarcode.get(itemReq.getProductCode());
+            if (existingItem != null) {
+                updateItemAndDeductStock(existingItem, itemReq);
+            } else {
+                ReceiptItem newItem = buildItemAndDeductStock(itemReq, receipt);
+                receipt.addItem(newItem);
+            }
+        }
 
         recalculateTotals(receipt);
         Receipt saved = receiptRepository.save(receipt);
@@ -111,6 +124,10 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         if (receipt.isDeleted() || receipt.getStatus() == ReceiptStatus.DELETED) {
             throw new BusinessException("Receipt is already deleted");
+        }
+
+        if (receipt.getStatus() == ReceiptStatus.DRAFT) {
+            return deleteTemporaryReceipt(id);
         }
 
         List<ReceiptItem> items = receipt.getItems();
@@ -162,6 +179,188 @@ public class ReceiptServiceImpl implements ReceiptService {
 
         log.info("Receipt moved to draft: {}", receipt.getReceiptNumber());
         return mapToResponseDto(receipt);
+    }
+
+    @Override
+    public ReceiptResponseDto createTemporaryReceipt(ReceiptRequestDto request) {
+        Cashier cashier = cashierRepository.findById(request.getCashierId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
+
+        Receipt receipt = Receipt.builder()
+                .receiptNumber(generateUniqueReceiptNumber())
+                .receiptDate(LocalDateTime.now())
+                .paymentMethod(parsePaymentMethod(request.getPaymentMethod()))
+                .receiptType(parseReceiptType(request.getReceiptType()))
+                .customerName(request.getCustomerName())
+                .customerPhone(request.getCustomerPhone())
+                .tax(request.getTax())
+                .discount(request.getDiscount())
+                .status(ReceiptStatus.DRAFT)
+                .cashier(cashier)
+                .isDeleted(false)
+                .build();
+
+        List<ReceiptItem> items = request.getItems().stream()
+                .map(itemReq -> buildItemWithoutStockDeduction(itemReq, receipt))
+                .collect(Collectors.toList());
+        receipt.setItems(items);
+
+        recalculateTotals(receipt);
+        Receipt saved = receiptRepository.save(receipt);
+
+        log.info("Temporary receipt created: {} by cashier: {}", saved.getReceiptNumber(), cashier.getFullName());
+        return mapToResponseDto(saved);
+    }
+
+    @Override
+    public ReceiptResponseDto updateTemporaryReceipt(Long id, ReceiptRequestDto request) {
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
+        if (receipt.isDeleted() || receipt.getStatus() == ReceiptStatus.DELETED) {
+            throw new BusinessException("Cannot update a deleted receipt");
+        }
+        if (receipt.getStatus() != ReceiptStatus.DRAFT) {
+            throw new BusinessException("Receipt is not a temporary receipt");
+        }
+
+        if (request.getPaymentMethod() != null) {
+            receipt.setPaymentMethod(parsePaymentMethod(request.getPaymentMethod()));
+        }
+        if (request.getReceiptType() != null) {
+            receipt.setReceiptType(parseReceiptType(request.getReceiptType()));
+        }
+        if (request.getCustomerName() != null) {
+            receipt.setCustomerName(request.getCustomerName());
+        }
+        if (request.getCustomerPhone() != null) {
+            receipt.setCustomerPhone(request.getCustomerPhone());
+        }
+        receipt.setTax(request.getTax());
+        receipt.setDiscount(request.getDiscount());
+
+        Map<String, ReceiptItem> existingItemsByBarcode = receipt.getItems().stream()
+                .collect(Collectors.toMap(ReceiptItem::getProductCode, item -> item, (e, r) -> e));
+
+        Set<String> requestedBarcodes = request.getItems().stream()
+                .map(ReceiptItemRequest::getProductCode)
+                .collect(Collectors.toSet());
+
+        // 1. Remove items no longer in request (orphanRemoval deletes them from DB)
+        receipt.getItems().removeIf(item -> !requestedBarcodes.contains(item.getProductCode()));
+
+        // 2. Update existing items in-place or add newly introduced items
+        for (ReceiptItemRequest itemReq : request.getItems()) {
+            ReceiptItem existingItem = existingItemsByBarcode.get(itemReq.getProductCode());
+            if (existingItem != null) {
+                updateItemWithoutStockDeduction(existingItem, itemReq);
+            } else {
+                ReceiptItem newItem = buildItemWithoutStockDeduction(itemReq, receipt);
+                receipt.addItem(newItem);
+            }
+        }
+
+        recalculateTotals(receipt);
+        Receipt saved = receiptRepository.save(receipt);
+
+        log.info("Temporary receipt updated: {}", saved.getReceiptNumber());
+        return mapToResponseDto(saved);
+    }
+
+    @Override
+    public ReceiptResponseDto completeTemporaryReceipt(Long id, ReceiptRequestDto request) {
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
+        if (receipt.isDeleted() || receipt.getStatus() == ReceiptStatus.DELETED) {
+            throw new BusinessException("Cannot complete a deleted receipt");
+        }
+        if (receipt.getStatus() != ReceiptStatus.DRAFT) {
+            throw new BusinessException("Only temporary receipts can be completed via this operation");
+        }
+
+        if (request.getPaymentMethod() != null) {
+            receipt.setPaymentMethod(parsePaymentMethod(request.getPaymentMethod()));
+        }
+        if (request.getReceiptType() != null) {
+            receipt.setReceiptType(parseReceiptType(request.getReceiptType()));
+        }
+        if (request.getCustomerName() != null) {
+            receipt.setCustomerName(request.getCustomerName());
+        }
+        if (request.getCustomerPhone() != null) {
+            receipt.setCustomerPhone(request.getCustomerPhone());
+        }
+        receipt.setTax(request.getTax());
+        receipt.setDiscount(request.getDiscount());
+        receipt.setReceiptDate(LocalDateTime.now());
+        receipt.setStatus(ReceiptStatus.SAVED);
+
+        Map<String, ReceiptItem> existingItemsByBarcode = receipt.getItems().stream()
+                .collect(Collectors.toMap(ReceiptItem::getProductCode, item -> item, (e, r) -> e));
+
+        Set<String> requestedBarcodes = request.getItems().stream()
+                .map(ReceiptItemRequest::getProductCode)
+                .collect(Collectors.toSet());
+
+        // 1. Remove items no longer in request (no stock was ever deducted for temp receipts)
+        receipt.getItems().removeIf(item -> !requestedBarcodes.contains(item.getProductCode()));
+
+        // 2. Update existing items (deducting stock) or add newly introduced items (deducting stock)
+        for (ReceiptItemRequest itemReq : request.getItems()) {
+            ReceiptItem existingItem = existingItemsByBarcode.get(itemReq.getProductCode());
+            if (existingItem != null) {
+                updateItemAndDeductStock(existingItem, itemReq);
+            } else {
+                ReceiptItem newItem = buildItemAndDeductStock(itemReq, receipt);
+                receipt.addItem(newItem);
+            }
+        }
+
+        recalculateTotals(receipt);
+        Receipt saved = receiptRepository.save(receipt);
+
+        log.info("Temporary receipt completed to permanent sale: {}", saved.getReceiptNumber());
+        return mapToResponseDto(saved);
+    }
+
+    @Override
+    public DeleteReceiptResponseDto deleteTemporaryReceipt(Long id) {
+        Receipt receipt = receiptRepository.findActiveWithItemsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found with id: " + id));
+
+        if (receipt.isDeleted() || receipt.getStatus() == ReceiptStatus.DELETED) {
+            throw new BusinessException("Receipt is already deleted");
+        }
+        if (receipt.getStatus() != ReceiptStatus.DRAFT) {
+            throw new BusinessException("Receipt is not a temporary receipt. Use standard delete for saved receipts.");
+        }
+
+        // Deliberately do not restore stock because temporary receipts never deducted stock!
+        receipt.setDeleted(true);
+        receipt.setStatus(ReceiptStatus.DELETED);
+        receiptRepository.save(receipt);
+
+        log.info("Temporary receipt deleted: {}", receipt.getReceiptNumber());
+        return DeleteReceiptResponseDto.builder()
+                .id(id)
+                .isDeleted(true)
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReceiptListItemDto> getTemporaryReceipts() {
+        return receiptRepository.findActiveDrafts()
+                .stream()
+                .map(this::mapToListItemDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getTemporaryReceiptsCount() {
+        return receiptRepository.countByStatusAndIsDeletedFalse(ReceiptStatus.DRAFT);
     }
 
     @Override
@@ -227,8 +426,8 @@ public class ReceiptServiceImpl implements ReceiptService {
         return ReceiptNavigationWindowResponse.builder()
                 .currentReceiptId(centerReceipt.getId())
                 .currentIndex(newerReceipts.size())
-                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(centerReceipt.getId()))
-                .hasNewer(receiptRepository.existsByIsDeletedFalseAndIdGreaterThan(centerReceipt.getId()))
+                .hasOlder(receiptRepository.existsSavedOlderThan(centerReceipt.getId()))
+                .hasNewer(receiptRepository.existsSavedNewerThan(centerReceipt.getId()))
                 .receipts(receipts.stream().map(this::mapToResponseDto).toList())
                 .build();
     }
@@ -330,6 +529,65 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .build();
     }
 
+    private ReceiptItem buildItemWithoutStockDeduction(ReceiptItemRequest itemReq, Receipt receipt) {
+        CashierSaleProduct product = cashierProductPort.getProductSnapshot(itemReq.getProductCode());
+
+        BigDecimal sellingPrice = itemReq.getSellingPrice() != null
+                ? itemReq.getSellingPrice()
+                : product.sellingPrice();
+        BigDecimal lineTotal = itemReq.getTotal() != null
+                ? itemReq.getTotal()
+                : sellingPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+        return ReceiptItem.builder()
+                .receipt(receipt)
+                .productCode(product.barcode())
+                .productName(product.name())
+                .quantity(itemReq.getQuantity())
+                .sellingPrice(sellingPrice)
+                .buyingPrice(product.buyingPrice())
+                .total(lineTotal)
+                .remainingStock(product.remainingStock())
+                .build();
+    }
+
+    private void updateItemWithoutStockDeduction(ReceiptItem item, ReceiptItemRequest itemReq) {
+        CashierSaleProduct product = cashierProductPort.getProductSnapshot(itemReq.getProductCode());
+
+        BigDecimal sellingPrice = itemReq.getSellingPrice() != null
+                ? itemReq.getSellingPrice()
+                : product.sellingPrice();
+        BigDecimal lineTotal = itemReq.getTotal() != null
+                ? itemReq.getTotal()
+                : sellingPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+        item.setProductName(product.name());
+        item.setQuantity(itemReq.getQuantity());
+        item.setSellingPrice(sellingPrice);
+        item.setBuyingPrice(product.buyingPrice());
+        item.setTotal(lineTotal);
+        item.setRemainingStock(product.remainingStock());
+    }
+
+    private void updateItemAndDeductStock(ReceiptItem item, ReceiptItemRequest itemReq) {
+        CashierSaleProduct product = cashierProductPort.deductStock(
+                itemReq.getProductCode(),
+                itemReq.getQuantity()
+        );
+
+        BigDecimal sellingPrice = product.sellingPrice();
+        BigDecimal lineTotal = itemReq.getTotal() != null
+                ? itemReq.getTotal()
+                : sellingPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+        item.setProductName(product.name());
+        item.setQuantity(itemReq.getQuantity());
+        item.setSellingPrice(sellingPrice);
+        item.setBuyingPrice(product.buyingPrice());
+        item.setTotal(lineTotal);
+        item.setRemainingStock(product.remainingStock());
+    }
+
     private void restoreStockForItems(List<ReceiptItem> items) {
         for (ReceiptItem item : items) {
             double restoredQuantity = item.getQuantity();
@@ -413,7 +671,7 @@ public class ReceiptServiceImpl implements ReceiptService {
         return ReceiptNavigationWindowResponse.builder()
                 .currentReceiptId(latestReceipt.getId())
                 .currentIndex(0)
-                .hasOlder(receiptRepository.existsByIsDeletedFalseAndIdLessThan(latestReceipt.getId()))
+                .hasOlder(receiptRepository.existsSavedOlderThan(latestReceipt.getId()))
                 .hasNewer(false)
                 .receipts(receipts.stream().map(this::mapToResponseDto).toList())
                 .build();

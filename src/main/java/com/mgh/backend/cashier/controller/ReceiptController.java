@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/receipt")
@@ -120,6 +122,42 @@ public class ReceiptController {
     @PostMapping("/{id}/draft")
     public ResponseEntity<ReceiptResponseDto> draftReceipt(@PathVariable Long id) {
         return ResponseEntity.ok(receiptService.draftReceipt(id));
+    }
+
+    // ─── Temporary Receipts (Drafts) Endpoints ───
+
+    @PostMapping("/temporary")
+    public ResponseEntity<ReceiptResponseDto> createTemporaryReceipt(@Valid @RequestBody ReceiptRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(receiptService.createTemporaryReceipt(request));
+    }
+
+    @PutMapping("/temporary/{id}")
+    public ResponseEntity<ReceiptResponseDto> updateTemporaryReceipt(
+            @PathVariable Long id,
+            @Valid @RequestBody ReceiptRequestDto request) {
+        return ResponseEntity.ok(receiptService.updateTemporaryReceipt(id, request));
+    }
+
+    @PostMapping("/temporary/{id}/complete")
+    public ResponseEntity<ReceiptResponseDto> completeTemporaryReceipt(
+            @PathVariable Long id,
+            @Valid @RequestBody ReceiptRequestDto request) {
+        return ResponseEntity.ok(receiptService.completeTemporaryReceipt(id, request));
+    }
+
+    @DeleteMapping("/temporary/{id}")
+    public ResponseEntity<DeleteReceiptResponseDto> deleteTemporaryReceipt(@PathVariable Long id) {
+        return ResponseEntity.ok(receiptService.deleteTemporaryReceipt(id));
+    }
+
+    @GetMapping("/temporary")
+    public ResponseEntity<List<ReceiptListItemDto>> getTemporaryReceipts() {
+        return ResponseEntity.ok(receiptService.getTemporaryReceipts());
+    }
+
+    @GetMapping("/temporary/count")
+    public ResponseEntity<java.util.Map<String, Long>> getTemporaryReceiptsCount() {
+        return ResponseEntity.ok(java.util.Map.of("count", receiptService.getTemporaryReceiptsCount()));
     }
 
     @PostMapping("/refill/validate")

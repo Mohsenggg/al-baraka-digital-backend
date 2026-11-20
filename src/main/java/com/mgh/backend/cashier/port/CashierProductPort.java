@@ -8,6 +8,8 @@ public interface CashierProductPort {
 
     Double getCurrentStock(String productCode);
 
+    CashierSaleProduct getProductSnapshot(String productCode);
+
     com.mgh.backend.cashier.dto.RefillValidateResponse validateRefill(com.mgh.backend.cashier.dto.RefillValidateRequest request);
 
     com.mgh.backend.product.dto.response.ProductDto executeRefill(com.mgh.backend.cashier.dto.RefillExecuteRequest request);

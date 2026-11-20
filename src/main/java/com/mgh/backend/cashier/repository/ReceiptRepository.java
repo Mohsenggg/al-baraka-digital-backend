@@ -1,6 +1,7 @@
 package com.mgh.backend.cashier.repository;
 
 import com.mgh.backend.cashier.entity.Receipt;
+import com.mgh.backend.cashier.entity.ReceiptStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,12 +34,25 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
 
     boolean existsByReceiptNumber(String number);
 
+    long countByStatusAndIsDeletedFalse(ReceiptStatus status);
+
+    @Query("""
+            SELECT r
+            FROM Receipt r
+            LEFT JOIN FETCH r.cashier
+            WHERE r.status = com.mgh.backend.cashier.entity.ReceiptStatus.DRAFT
+              AND r.isDeleted = false
+            ORDER BY COALESCE(r.updatedAt, r.createdAt) DESC, r.id DESC
+            """)
+    List<Receipt> findActiveDrafts();
+
     @Query("""
             SELECT DISTINCT r
             FROM Receipt r
             LEFT JOIN FETCH r.items
             LEFT JOIN FETCH r.cashier
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
             ORDER BY r.id DESC
             """)
     List<Receipt> findLatestNavigationWindow(Pageable pageable);
@@ -49,6 +63,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             LEFT JOIN FETCH r.items
             LEFT JOIN FETCH r.cashier
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND r.id > :centerReceiptId
             ORDER BY r.id ASC
             """)
@@ -60,6 +75,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             LEFT JOIN FETCH r.items
             LEFT JOIN FETCH r.cashier
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND r.id < :centerReceiptId
             ORDER BY r.id DESC
             """)
@@ -79,6 +95,12 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
 
     boolean existsByIsDeletedFalseAndIdGreaterThan(Long id);
 
+    @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Receipt r WHERE r.isDeleted = false AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED AND r.id < :id")
+    boolean existsSavedOlderThan(@Param("id") Long id);
+
+    @Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Receipt r WHERE r.isDeleted = false AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED AND r.id > :id")
+    boolean existsSavedNewerThan(@Param("id") Long id);
+
     // ─── Navigation by business order (receiptDate DESC, id DESC) ───
 
     @Query("""
@@ -87,6 +109,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             LEFT JOIN FETCH r.items
             LEFT JOIN FETCH r.cashier
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND (r.receiptDate < :receiptDate
                    OR (r.receiptDate = :receiptDate AND r.id < :receiptId))
             ORDER BY r.receiptDate DESC, r.id DESC
@@ -102,6 +125,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             LEFT JOIN FETCH r.items
             LEFT JOIN FETCH r.cashier
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND (r.receiptDate > :receiptDate
                    OR (r.receiptDate = :receiptDate AND r.id > :receiptId))
             ORDER BY r.receiptDate ASC, r.id ASC
@@ -115,6 +139,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
             FROM Receipt r
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND (r.receiptDate < :receiptDate
                    OR (r.receiptDate = :receiptDate AND r.id < :receiptId))
             """)
@@ -126,6 +151,7 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long>, JpaSpec
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
             FROM Receipt r
             WHERE r.isDeleted = false
+              AND r.status = com.mgh.backend.cashier.entity.ReceiptStatus.SAVED
               AND (r.receiptDate > :receiptDate
                    OR (r.receiptDate = :receiptDate AND r.id > :receiptId))
             """)
