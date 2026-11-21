@@ -2,6 +2,7 @@ package com.mgh.backend.cashier.config;
 
 import com.mgh.backend.cashier.entity.Cashier;
 import com.mgh.backend.cashier.repository.CashierRepository;
+import com.mgh.backend.cashier.service.PosSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ public class CashierDataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(CashierDataInitializer.class);
     private final CashierRepository cashierRepository;
+    private final PosSettingsService posSettingsService;
 
     @Override
     public void run(String... args) {
@@ -34,5 +36,7 @@ public class CashierDataInitializer implements CommandLineRunner {
             cashierRepository.save(defaultCashier);
             log.info("Default cashier seeded successfully with id: {}", defaultCashier.getId());
         }
+
+        posSettingsService.seedDefaultSettingsIfMissing();
     }
 }

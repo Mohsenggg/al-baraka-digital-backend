@@ -37,7 +37,8 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     public ReceiptResponseDto createReceipt(ReceiptRequestDto request) {
         Cashier cashier = cashierRepository.findById(request.getCashierId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
 
         Receipt receipt = Receipt.builder()
                 .receiptNumber(generateUniqueReceiptNumber())
@@ -184,7 +185,8 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     public ReceiptResponseDto createTemporaryReceipt(ReceiptRequestDto request) {
         Cashier cashier = cashierRepository.findById(request.getCashierId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Cashier not found with id: " + request.getCashierId()));
 
         Receipt receipt = Receipt.builder()
                 .receiptNumber(generateUniqueReceiptNumber())
@@ -303,10 +305,12 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .map(ReceiptItemRequest::getProductCode)
                 .collect(Collectors.toSet());
 
-        // 1. Remove items no longer in request (no stock was ever deducted for temp receipts)
+        // 1. Remove items no longer in request (no stock was ever deducted for temp
+        // receipts)
         receipt.getItems().removeIf(item -> !requestedBarcodes.contains(item.getProductCode()));
 
-        // 2. Update existing items (deducting stock) or add newly introduced items (deducting stock)
+        // 2. Update existing items (deducting stock) or add newly introduced items
+        // (deducting stock)
         for (ReceiptItemRequest itemReq : request.getItems()) {
             ReceiptItem existingItem = existingItemsByBarcode.get(itemReq.getProductCode());
             if (existingItem != null) {
@@ -336,7 +340,8 @@ public class ReceiptServiceImpl implements ReceiptService {
             throw new BusinessException("Receipt is not a temporary receipt. Use standard delete for saved receipts.");
         }
 
-        // Deliberately do not restore stock because temporary receipts never deducted stock!
+        // Deliberately do not restore stock because temporary receipts never deducted
+        // stock!
         receipt.setDeleted(true);
         receipt.setStatus(ReceiptStatus.DELETED);
         receiptRepository.save(receipt);
@@ -393,8 +398,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     public PageResponseDto<ReceiptListItemDto> searchReceipts(ReceiptSearchFilter filter, Pageable pageable) {
         Page<Receipt> receiptPage = receiptRepository.findAll(
                 ReceiptSpecification.withFilters(filter),
-                pageable
-        );
+                pageable);
         return PageResponseDto.from(receiptPage, this::mapToListItemDto);
     }
 
@@ -503,14 +507,13 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     // ──────────────────────────────────────────────
-    //  Private helpers
+    // Private helpers
     // ──────────────────────────────────────────────
 
     private ReceiptItem buildItemAndDeductStock(ReceiptItemRequest itemReq, Receipt receipt) {
         CashierSaleProduct product = cashierProductPort.deductStock(
                 itemReq.getProductCode(),
-                itemReq.getQuantity()
-        );
+                itemReq.getQuantity());
 
         BigDecimal sellingPrice = product.sellingPrice();
         BigDecimal lineTotal = itemReq.getTotal() != null
@@ -572,8 +575,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     private void updateItemAndDeductStock(ReceiptItem item, ReceiptItemRequest itemReq) {
         CashierSaleProduct product = cashierProductPort.deductStock(
                 itemReq.getProductCode(),
-                itemReq.getQuantity()
-        );
+                itemReq.getQuantity());
 
         BigDecimal sellingPrice = product.sellingPrice();
         BigDecimal lineTotal = itemReq.getTotal() != null
@@ -632,11 +634,12 @@ public class ReceiptServiceImpl implements ReceiptService {
     private String generateReceiptNumber() {
         String datePart = LocalDateTime.now().toLocalDate().toString().replace("-", "");
         String uuid = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return "INV-" + datePart + "-" + uuid;
+        return datePart + "-" + uuid;
     }
 
     private PaymentMethod parsePaymentMethod(String method) {
-        if (method == null || method.isBlank()) return PaymentMethod.CASH;
+        if (method == null || method.isBlank())
+            return PaymentMethod.CASH;
         try {
             return PaymentMethod.valueOf(method.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -645,7 +648,8 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     private ReceiptType parseReceiptType(String type) {
-        if (type == null || type.isBlank()) return ReceiptType.SELL;
+        if (type == null || type.isBlank())
+            return ReceiptType.SELL;
         try {
             return ReceiptType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -678,7 +682,7 @@ public class ReceiptServiceImpl implements ReceiptService {
     }
 
     // ──────────────────────────────────────────────
-    //  DTO mapping
+    // DTO mapping
     // ──────────────────────────────────────────────
 
     private ReceiptResponseDto mapToResponseDto(Receipt receipt) {
@@ -709,7 +713,8 @@ public class ReceiptServiceImpl implements ReceiptService {
                 .customerId(receipt.getCustomer() != null ? receipt.getCustomer().getId() : null)
                 .cashierId(receipt.getCashier() != null ? receipt.getCashier().getId() : null)
                 .cashierName(receipt.getCashier() != null && receipt.getCashier().getFullName() != null
-                        ? receipt.getCashier().getFullName() : "Unknown")
+                        ? receipt.getCashier().getFullName()
+                        : "Unknown")
                 .tax(tax)
                 .discount(discount)
                 .subtotal(subtotal)
